@@ -1,3 +1,5 @@
+use log::{info, trace};
+
 pub struct Memory {
     rom_bank: [u8; 0x8000], // 32 KiB ROM bank, no MBC support for now
 }
@@ -11,8 +13,17 @@ impl Memory {
     }
 
     pub fn load_rom(&mut self, rom: Vec<u8>) {
+        if rom.len() == 256 {
+            // special case of the boot ROM
+            info!("BOOT ROM LOADED");
+            self.rom_bank[..rom.len()].copy_from_slice(&rom);
+            return;
+        }
+
+        // check the cartridge byte
+
         let mbc_byte = rom[0x0147];
-        println!(
+        info!(
             "CARTRIDGE TYPE : {}",
             match mbc_byte {
                 0x00 => "ROM ONLY",
@@ -56,20 +67,49 @@ impl Memory {
         self.rom_bank[..rom.len()].copy_from_slice(&rom);
     }
 
-    /*
     // accessors
-    pub fn read_byte(&self, address: usize) -> u8 {
-        return self.memory[address];
+    pub fn read_byte(&self, address: u16) -> u8 {
+        match address {
+            0x0000..0x8000 => {
+                let byte = self.rom_bank[address as usize];
+                trace!(
+                    "Read byte {:#X} from ROM bank at address {:#X}",
+                    byte,
+                    address
+                );
+                return byte;
+            }
+            _ => panic!("INVALID ADDRESS"),
+        }
     }
 
+    /*
     pub fn write_byte(&mut self, address: usize, value: u8) {
         self.memory[address] = value;
+    } */
+
+    pub fn read_word(&self, address: u16) -> u16 {
+        match address {
+            0x0000..0x8000 => {
+                let word = u16::from_le_bytes(
+                    self.rom_bank[(address as usize)..((address + 2) as usize)]
+                        .try_into()
+                        .unwrap(),
+                );
+
+                trace!(
+                    "Read word {:#X} from ROM bank at address {:#X}",
+                    word,
+                    address
+                );
+
+                return word;
+            }
+            _ => panic!("INVALID ADDRESS"),
+        }
     }
 
-    pub fn read_word(&self, address: usize) -> u16 {
-        u16::from_le_bytes(self.memory[address..(address + 2)].try_into().unwrap())
-    }
-
+    /*
     pub fn write_word(&mut self, address: usize, value: u16) {
         let value_bytes = value.to_le_bytes();
         self.memory[address] = value_bytes[0];

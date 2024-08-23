@@ -1,7 +1,7 @@
-use cpu::CPU;
-use memory::Memory;
+use gameboy::Gameboy;
 
 mod cpu;
+mod gameboy;
 mod memory;
 
 fn main() {
@@ -11,9 +11,12 @@ fn main() {
         return;
     }
 
-    let mut memory = Memory::new();
-    //let mut cpu = CPU::new();
+    env_logger::init();
 
     let rom = std::fs::read(&args[1]).unwrap();
-    memory.load_rom(rom);
+    let mut gameboy = Gameboy::new(rom);
+
+    loop {
+        gameboy.step();
+    }
 }

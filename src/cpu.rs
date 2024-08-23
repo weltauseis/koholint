@@ -1,3 +1,9 @@
+use std::rc::Rc;
+
+use log::trace;
+
+use crate::memory::Memory;
+
 pub struct CPU {
     // 8 & 16 bits registers
     a: u8,
@@ -21,7 +27,7 @@ enum Flags {
 
 impl CPU {
     // constructor
-    pub fn new() -> CPU {
+    pub fn blank() -> CPU {
         return CPU {
             a: 0,
             f: 0,
@@ -138,7 +144,7 @@ impl CPU {
         self.pc = value;
     }
 
-    // static utilities
-
-    pub fn dissassemble(rom: Vec<u8>) {}
+    pub fn increment_pc(&mut self, value: u16) {
+        self.pc += value;
+    }
 }
