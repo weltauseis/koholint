@@ -137,4 +137,8 @@ impl CPU {
     pub fn set_pc(&mut self, value: u16) {
         self.pc = value;
     }
+
+    // static utilities
+
+    pub fn dissassemble(rom: Vec<u8>) {}
 }
