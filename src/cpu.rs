@@ -144,8 +144,12 @@ impl CPU {
         self.pc = value;
     }
 
-    pub fn increment_pc(&mut self, value: u16) {
-        self.pc += value;
+    pub fn increment_pc(&mut self, offset: i8) {
+        if offset > 0 {
+            self.pc = self.pc.wrapping_add(offset.abs() as u16);
+        } else {
+            self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+        }
     }
 
     // flags register :
@@ -158,9 +162,33 @@ impl CPU {
 
     pub fn set_z_flag(&mut self, value: bool) {
         if value {
-            self.f = self.f | 0b_1000_0000;
+            self.f |= 0b_1000_0000;
         } else {
-            self.f = self.f & !0b_1000_0000;
+            self.f &= !0b_1000_0000;
+        }
+    }
+
+    pub fn get_n_flag(&self) -> bool {
+        return ((self.f >> 6) & 1) == 1;
+    }
+
+    pub fn set_n_flag(&mut self, value: bool) {
+        if value {
+            self.f |= 0b_0100_0000;
+        } else {
+            self.f &= !0b_0100_0000;
+        }
+    }
+
+    pub fn get_h_flag(&self) -> bool {
+        return ((self.f >> 5) & 1) == 1;
+    }
+
+    pub fn set_h_flag(&mut self, value: bool) {
+        if value {
+            self.f |= 0b_0010_0000;
+        } else {
+            self.f &= !0b_0010_0000;
         }
     }
 }

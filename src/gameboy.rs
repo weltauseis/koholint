@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, trace};
 use paste::paste;
 
 use crate::{cpu::CPU, memory::Memory};
@@ -17,6 +17,15 @@ impl Gameboy {
             cpu: CPU::blank(),
             mem,
         };
+    }
+
+    // accessors to watch values
+    pub fn cpu(&self) -> &CPU {
+        return &self.cpu;
+    }
+
+    pub fn memory(&self) -> &Memory {
+        return &self.mem;
     }
 
     // functions
@@ -67,15 +76,60 @@ impl Gameboy {
             };
         }
 
+        #[macro_export]
+        macro_rules! dec_r8 {
+            ($self:ident, $reg:ident) => {
+                paste! {
+                    let r8 = $self.cpu.[<get_ $reg>]();
+                    let result = r8.wrapping_sub(1);
+
+                    $self.cpu.set_z_flag(result == 0);
+                    $self.cpu.set_n_flag(true);
+                    $self.cpu.set_h_flag((r8 & 0xF) == 0);
+
+                    $self.cpu.[<set_ $reg>](result);
+                    $self.cpu.increment_pc(1);
+                }
+            };
+        }
+
+        #[macro_export]
+        macro_rules! jr_cc_imm8 {
+            // THE OFFSET IS SIGNED !!
+            ($self:ident, $flag:ident, $value: expr) => {
+                paste! {
+                    let imm8 = $self.mem.read_byte($self.cpu.get_pc() + 1);
+
+                    let offset = i8::from_le_bytes([imm8]);
+
+                    trace!("Relative jump offset : {}", offset);
+
+                    $self.cpu.increment_pc(2);
+                    if $self.cpu.[<get_ $flag _flag>]() == $value {
+                        $self.cpu.increment_pc(offset);
+                    }
+                }
+            };
+        }
+
+        //debug!("Executing instruction at pc = {:#06X} :", pc);
         match instr {
             // ld r16, imm16
             0x01 => {
                 debug!("ld bc, imm16");
                 ld_r16_imm16!(self, bc);
             }
+            0x05 => {
+                debug!("dec b");
+                dec_r8!(self, b);
+            }
             0x06 => {
                 debug!("ld b, imm8");
                 ld_r8_imm8!(self, b);
+            }
+            0x0D => {
+                debug!("dec c");
+                dec_r8!(self, c);
             }
             0x0E => {
                 debug!("ld c, imm8");
@@ -84,6 +138,10 @@ impl Gameboy {
             0x11 => {
                 debug!("ld de, imm16");
                 ld_r16_imm16!(self, de);
+            }
+            0x20 => {
+                debug!("jr nz, imm8");
+                jr_cc_imm8!(self, z, false);
             }
             0x21 => {
                 debug!("ld hl, imm16");
