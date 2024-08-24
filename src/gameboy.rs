@@ -25,7 +25,7 @@ impl Gameboy {
         let pc = self.cpu.get_pc();
         let instr = self.mem.read_byte(pc);
 
-        // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
+        // https://rgbds.gbdev.io/docs
         // https://gbdev.io/gb-opcodes//optables/
 
         #[macro_export]
@@ -40,14 +40,29 @@ impl Gameboy {
         }
 
         #[macro_export]
+        macro_rules! ld_r8_imm8 {
+            ($self:ident, $reg:ident) => {
+                paste! {
+                    let imm8 = $self.mem.read_byte($self.cpu.get_pc() + 1);
+                    $self.cpu.[<set_ $reg>](imm8);
+                    $self.cpu.increment_pc(2);
+                }
+            };
+        }
+
+        #[macro_export]
         macro_rules! xor_a_r8 {
             ($self:ident, $reg:ident) => {
                 paste! {
                     let a = $self.cpu.get_a();
-                    let r8 = $self.cpu.[<get_ $reg>]();
+
+                    let r8 = self.cpu.[<get_ $reg>]();
 
                     $self.cpu.set_a(a ^ r8);
                     $self.cpu.increment_pc(1);
+
+                    $self.cpu.set_z_flag($self.cpu.get_a() == 0);
+
                 }
             };
         }
@@ -57,6 +72,14 @@ impl Gameboy {
             0x01 => {
                 debug!("ld bc, imm16");
                 ld_r16_imm16!(self, bc);
+            }
+            0x06 => {
+                debug!("ld b, imm8");
+                ld_r8_imm8!(self, b);
+            }
+            0x0E => {
+                debug!("ld c, imm8");
+                ld_r8_imm8!(self, e);
             }
             0x11 => {
                 debug!("ld de, imm16");
@@ -69,6 +92,14 @@ impl Gameboy {
             0x31 => {
                 debug!("ld sp, imm16");
                 ld_r16_imm16!(self, sp);
+            }
+            0x32 => {
+                debug!("ld (hl-), a");
+                let hl = self.cpu.get_hl();
+                let a = self.cpu.get_a();
+                self.mem.write_byte(hl, a);
+                self.cpu.set_hl(hl - 1);
+                self.cpu.increment_pc(1);
             }
             // xor a, r8
             0xA8 => {
@@ -97,8 +128,10 @@ impl Gameboy {
             }
             0xAE => {
                 debug!("xor a, (hl)");
+                // special case of byte loaded from address in register
                 let a = self.cpu.get_a();
-                let byte = self.mem.read_byte(self.cpu.get_hl());
+                let hl = self.cpu.get_hl();
+                let byte = self.mem.read_byte(hl);
                 self.cpu.set_a(a ^ byte);
                 self.cpu.increment_pc(1);
             }
@@ -106,8 +139,13 @@ impl Gameboy {
                 debug!("xor a, a");
                 xor_a_r8!(self, a);
             }
+            0xC3 => {
+                debug!("jp imm16");
+                let address = self.mem.read_word(pc + 1);
+                self.cpu.set_pc(address);
+            }
 
-            _ => panic!("UNHANDLED INSTRUCTION ({:#X})", instr),
+            _ => panic!("UNHANDLED INSTRUCTION ({:#04X}) at PC {:#06X}", instr, pc),
         };
     }
 }

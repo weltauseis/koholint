@@ -147,4 +147,20 @@ impl CPU {
     pub fn increment_pc(&mut self, value: u16) {
         self.pc += value;
     }
+
+    // flags register :
+    // 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 (bit n°)
+    // Z | N | H | C | 0 | 0 | 0 | 0 (flag)
+
+    pub fn get_z_flag(&self) -> bool {
+        return ((self.f >> 7) & 1) == 1;
+    }
+
+    pub fn set_z_flag(&mut self, value: bool) {
+        if value {
+            self.f = self.f | 0b_1000_0000;
+        } else {
+            self.f = self.f & !0b_1000_0000;
+        }
+    }
 }

@@ -1,7 +1,13 @@
-use log::{info, trace};
+use log::{info, trace, warn};
+
+// https://gbdev.io/pandocs/Memory_Map.html
+// FIXME : add support for MBC and switchable ROM banks
+// FIXME : add support for switchable WRAM in gameboy color mode
 
 pub struct Memory {
-    rom_bank: [u8; 0x8000], // 32 KiB ROM bank, no MBC support for now
+    rom_bank: [u8; 0x8000], // 0000-7FFF | 32 KiB ROM bank, no MBC support for now
+    wram: [u8; 0x4000],     // C000-CFFF | 4 KiB Work RAM
+    switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
 }
 
 impl Memory {
@@ -9,6 +15,8 @@ impl Memory {
     pub fn new() -> Memory {
         return Memory {
             rom_bank: [0; 0x8000],
+            wram: [0; 0x4000],
+            switchable_wram: [0; 0x4000],
         };
     }
 
@@ -73,20 +81,42 @@ impl Memory {
             0x0000..0x8000 => {
                 let byte = self.rom_bank[address as usize];
                 trace!(
-                    "Read byte {:#X} from ROM bank at address {:#X}",
+                    "Read byte {:#X} from ROM bank at address {:#04X}",
                     byte,
                     address
                 );
                 return byte;
             }
-            _ => panic!("INVALID ADDRESS"),
+            _ => panic!("READ_BYTE : INVALID ADDRESS ({:#06X})", address),
         }
     }
 
-    /*
-    pub fn write_byte(&mut self, address: usize, value: u8) {
-        self.memory[address] = value;
-    } */
+    pub fn write_byte(&mut self, address: u16, value: u8) {
+        match address {
+            0x0000..0x8000 => {
+                panic!("CANNOT WRITE TO ROM BANK");
+            }
+            0xC000..0xD000 => {
+                trace!(
+                    "Wrote byte {:#04X} to WRAM at address {:#06X}",
+                    value,
+                    address
+                );
+                self.wram[(address - 0xC000) as usize] = value;
+            }
+            0xD000..0xE000 => {
+                trace!(
+                    "Wrote byte {:#04X} to switchable WRAM at address {:#06X}",
+                    value,
+                    address
+                );
+                self.switchable_wram[(address - 0xD000) as usize] = value;
+                warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
+            }
+            _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
+        }
+        //self.memory[address] = value;
+    }
 
     pub fn read_word(&self, address: u16) -> u16 {
         match address {
