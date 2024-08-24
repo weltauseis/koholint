@@ -3,7 +3,7 @@ use paste::paste;
 
 use crate::{
     cpu::CPU,
-    instructions::{decode_next_instruction, Instruction, Operand, Operation},
+    instructions::{self, Instruction, Operand, Operation},
     memory::Memory,
 };
 
@@ -35,58 +35,75 @@ impl Gameboy {
     // functions
 
     pub fn step(&mut self) {
-        //let instr = decode_instruction(&self.memory, self.cpu.get_program_counter());
-        //self.execute_instruction(instr);
+        let instr = instructions::decode_next_instruction(&self);
+        self.execute_instruction(instr);
     }
 
-    pub fn execute_instruction(&mut self, instr: Instruction) {
-        todo!()
+    fn execute_instruction(&mut self, instr: Instruction) {
+        use Operand::*;
+        match instr.op {
+            Operation::NOP => {
+                self.cpu.offset_program_counter(1);
+            }
+            Operation::JP_IMM16 { imm16 } => {
+                self.cpu.set_program_counter(imm16);
+            }
+            Operation::XOR_A_R8 { r8 } => {
+                let a = self.cpu.get_r8(R8_A);
+                let reg = self.cpu.get_r8(r8);
+                self.cpu.set_r8(R8_A, a ^ reg);
+
+                self.cpu.increment_program_counter(instr.size);
+
+                self.cpu.set_z_flag(self.cpu.get_r8(R8_A) == 0);
+            }
+            Operation::LD_R8_IMM8 { r8, imm8 } => {
+                self.cpu.set_r8(r8, imm8);
+
+                self.cpu.increment_program_counter(instr.size);
+            }
+            Operation::LD_PTR_R8 { ptr, r8 } => {
+                let address = self.cpu.get_r16(ptr);
+
+                self.memory.write_byte(address, self.cpu.get_r8(r8));
+
+                if matches!(ptr, R16_HLD) {
+                    let hl = self.cpu.get_r16(R16_HL);
+                    self.cpu.set_r16(R16_HL, hl.wrapping_sub(1));
+                }
+
+                self.cpu.increment_program_counter(instr.size);
+            }
+            Operation::LD_R16_IMM16 { r16, imm16 } => {
+                self.cpu.set_r16(r16, imm16);
+
+                self.cpu.increment_program_counter(instr.size);
+            }
+            Operation::DEC_R8 { r8 } => {
+                let reg = self.cpu.get_r8(r8);
+                let result = reg.wrapping_sub(1);
+
+                self.cpu.set_z_flag(result == 0);
+                self.cpu.set_n_flag(true);
+                self.cpu.set_h_flag(reg == 0);
+
+                self.cpu.set_r8(r8, result);
+
+                self.cpu.increment_program_counter(instr.size);
+            }
+
+            _ => panic!(
+                "EXECUTION : UNHANDLED INSTRUCTION ({}) at PC {:#06X}",
+                instr,
+                self.cpu.get_program_counter()
+            ),
+        }
 
         /*
-                    let pc = self.cpu.get_program_counter();
             let instr = self.mem.read_byte(pc);
 
             // https://rgbds.gbdev.io/docs
             // https://gbdev.io/gb-opcodes//optables/
-
-            #[macro_export]
-            macro_rules! ld_r16_imm16 {
-                ($self:ident, $reg:ident) => {
-                    paste! {
-                        let imm16 = $self.mem.read_word($self.cpu.get_pc() + 1);
-                        $self.cpu.[<set_ $reg>](imm16);
-                        $self.cpu.increment_pc(3);
-                    }
-                };
-            }
-
-            #[macro_export]
-            macro_rules! ld_r8_imm8 {
-                ($self:ident, $reg:ident) => {
-                    paste! {
-                        let imm8 = $self.mem.read_byte($self.cpu.get_pc() + 1);
-                        $self.cpu.[<set_ $reg>](imm8);
-                        $self.cpu.increment_pc(2);
-                    }
-                };
-            }
-
-            #[macro_export]
-            macro_rules! xor_a_r8 {
-                ($self:ident, $reg:ident) => {
-                    paste! {
-                        let a = $self.cpu.get_a();
-
-                        let r8 = self.cpu.[<get_ $reg>]();
-
-                        $self.cpu.set_a(a ^ r8);
-                        $self.cpu.increment_pc(1);
-
-                        $self.cpu.set_z_flag($self.cpu.get_a() == 0);
-
-                    }
-                };
-            }
 
             #[macro_export]
             macro_rules! dec_r8 {

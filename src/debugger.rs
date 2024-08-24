@@ -1,11 +1,8 @@
 use std::io::Write;
 
-use crate::{
-    gameboy::Gameboy,
-    instructions::{decode_instruction, decode_next_instruction},
-};
+use crate::{gameboy::Gameboy, instructions::decode_instruction};
 
-pub fn debug_console(console: Gameboy) {
+pub fn debug_console(mut console: Gameboy) {
     println!("Welcome to my GBC debugger !");
 
     loop {
@@ -29,23 +26,30 @@ pub fn debug_console(console: Gameboy) {
                 continue;
             }
             Some(cmd) => match *cmd {
-                "help" => {
+                "help" | "h" => {
                     println!("Available commands :");
                     println!("  help : display this help message");
                     println!("  exit : quit the debugger");
-                    println!("  list : print assembly at current pc");
+                    println!("  list : print assembly at current program counter");
+                    println!("  next : execute current instruction");
                 }
                 "exit" => {
                     println!("Exiting debugger...");
                     break;
                 }
-                "list" => {
+                "list" | "l" => {
                     // TODO: find a way to show previous instructions
 
                     let pc = console.cpu().get_program_counter();
                     let mut to_list = match subcommands.get(1) {
                         None => 5,
-                        Some(nb_string) => nb_string.parse().unwrap_or(5),
+                        Some(nb_string) => match nb_string.parse() {
+                            Ok(nb) => nb,
+                            Err(e) => {
+                                println!("Error : {e}");
+                                continue;
+                            }
+                        },
                     };
 
                     let mut pos = pc;
@@ -62,6 +66,12 @@ pub fn debug_console(console: Gameboy) {
                         to_list -= 1;
                     }
                 }
+                "next" | "n" => {
+                    console.step();
+                }
+                "continue" | "c" => loop {
+                    console.step();
+                },
                 _ => {
                     println!("Error : Unknown command ({})", subcommands[0]);
                 }

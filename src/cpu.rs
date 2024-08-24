@@ -83,7 +83,7 @@ impl CPU {
         return match r16 {
             Operand::R16_BC => u16::from_le_bytes([self.b, self.c]),
             Operand::R16_DE => u16::from_le_bytes([self.d, self.e]),
-            Operand::R16_HL => u16::from_le_bytes([self.h, self.l]),
+            Operand::R16_HL | Operand::R16_HLD => u16::from_le_bytes([self.h, self.l]),
             Operand::R16_SP => self.sp,
             _ => panic!("GET_R16 : INVALID REGISTER ({:?})", r16),
         };
@@ -100,7 +100,7 @@ impl CPU {
                 self.d = bytes[0];
                 self.e = bytes[1];
             }
-            Operand::R16_HL => {
+            Operand::R16_HL | Operand::R16_HLD => {
                 self.h = bytes[0];
                 self.l = bytes[1];
             }
@@ -117,6 +117,10 @@ impl CPU {
 
     pub fn set_program_counter(&mut self, value: u16) {
         self.pc = value;
+    }
+
+    pub fn increment_program_counter(&mut self, increment: u16) {
+        self.pc = self.pc.wrapping_add(increment);
     }
 
     pub fn offset_program_counter(&mut self, offset: i8) {

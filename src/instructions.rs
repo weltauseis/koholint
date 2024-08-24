@@ -3,7 +3,7 @@ use std::path::Display;
 
 use crate::{gameboy::Gameboy, memory::Memory};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operand {
     R8_A,
     R8_B,
@@ -16,13 +16,16 @@ pub enum Operand {
     R16_DE,
     R16_HL,
     R16_SP,
+    R16_HLD,
 }
 pub enum Operation {
     NOP,
     LD_R16_IMM16 { r16: Operand, imm16: u16 },
     LD_R8_IMM8 { r8: Operand, imm8: u8 },
+    LD_PTR_R8 { ptr: Operand, r8: Operand },
     DEC_R8 { r8: Operand },
     JP_IMM16 { imm16: u16 },
+    XOR_A_R8 { r8: Operand },
 }
 
 pub struct Instruction {
@@ -33,6 +36,12 @@ pub struct Instruction {
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", get_instruction_assembly(self))
+    }
+}
+
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", operand_to_str(self))
     }
 }
 
@@ -119,7 +128,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             };
         }
         0x31 => {
-            // ld sp, imm16");
+            // ld sp, imm16
             return Instruction {
                 op: Operation::LD_R16_IMM16 {
                     r16: Operand::R16_SP,
@@ -129,14 +138,20 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             };
         }
         0x32 => {
-            // ld (hl-), a");
+            // ld (hl-), a
+            return Instruction {
+                op: Operation::LD_PTR_R8 {
+                    ptr: Operand::R16_HLD,
+                    r8: Operand::R8_A,
+                },
+                size: 1,
+            };
         }
-        // xor a, r8
         0xA8 => {
-            // xor a, b");
+            // xor a, b
         }
         0xA9 => {
-            // xor a, c");
+            // xor a, c
         }
         0xAA => {
             // xor a, d");
@@ -154,7 +169,11 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             // xor a, (hl)");
         }
         0xAF => {
-            // xor a, a");
+            // xor a, a
+            return Instruction {
+                op: Operation::XOR_A_R8 { r8: Operand::R8_A },
+                size: 1,
+            };
         }
         0xC3 => {
             // jp imm16
@@ -183,14 +202,16 @@ pub fn get_instruction_assembly(instr: &Instruction) -> String {
     match &instr.op {
         Operation::NOP => String::from("nop"),
         Operation::LD_R16_IMM16 { r16, imm16 } => {
-            format!("ld {}, {:#06X}", operand_to_str(r16), imm16)
+            format!("ld {r16}, {:#06X}", imm16)
         }
         Operation::LD_R8_IMM8 { r8, imm8 } => {
-            format!("ld {}, {:#04X}", operand_to_str(r8), imm8)
+            format!("ld {r8}, {:#04X}", imm8)
         }
-        Operation::DEC_R8 { r8 } => format!("dec {}", operand_to_str(r8)),
+        Operation::LD_PTR_R8 { ptr, r8 } => format!("ld ({ptr}), {r8}"),
+        Operation::DEC_R8 { r8 } => format!("dec {r8}"),
         Operation::JP_IMM16 { imm16 } => format!("jp {:#06X}", imm16),
-        _ => todo!(),
+        Operation::XOR_A_R8 { r8 } => format!("xor a, {r8}"),
+        _ => todo!("get_instruction_assembly : unhandled operation type"),
     }
 }
 
@@ -207,5 +228,6 @@ fn operand_to_str(operand: &Operand) -> &'static str {
         Operand::R16_DE => "de",
         Operand::R16_HL => "hl",
         Operand::R16_SP => "sp",
+        Operand::R16_HLD => "hl-",
     }
 }
