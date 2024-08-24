@@ -1,7 +1,10 @@
+use debugger::debug_console;
 use gameboy::Gameboy;
 
 mod cpu;
+mod debugger;
 mod gameboy;
+mod instructions;
 mod memory;
 
 fn main() {
@@ -16,7 +19,9 @@ fn main() {
     let rom = std::fs::read(&args[1]).unwrap();
     let mut gameboy = Gameboy::new(rom);
 
-    loop {
+    /* loop {
         gameboy.step();
-    }
+    } */
+
+    debug_console(gameboy);
 }

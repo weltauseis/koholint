@@ -1,8 +1,4 @@
-use std::rc::Rc;
-
-use log::trace;
-
-use crate::memory::Memory;
+use crate::instructions::Operand;
 
 pub struct CPU {
     // 8 & 16 bits registers
@@ -43,108 +39,87 @@ impl CPU {
     }
 
     // accessors
-    pub fn get_a(&self) -> u8 {
-        return self.a;
-    }
-    pub fn set_a(&mut self, value: u8) {
-        self.a = value;
-    }
-
-    pub fn get_b(&self) -> u8 {
-        return self.b;
-    }
-
-    pub fn set_b(&mut self, value: u8) {
-        self.b = value;
+    pub fn get_r8(&self, r8: Operand) -> u8 {
+        return match r8 {
+            Operand::R8_A => self.a,
+            Operand::R8_B => self.b,
+            Operand::R8_C => self.c,
+            Operand::R8_D => self.d,
+            Operand::R8_E => self.e,
+            Operand::R8_H => self.h,
+            Operand::R8_L => self.l,
+            _ => panic!("GET_R8 : INVALID REGISTER ({:?})", r8),
+        };
     }
 
-    pub fn get_c(&self) -> u8 {
-        return self.c;
+    pub fn set_r8(&mut self, r8: Operand, value: u8) {
+        match r8 {
+            Operand::R8_A => {
+                self.a = value;
+            }
+            Operand::R8_B => {
+                self.b = value;
+            }
+            Operand::R8_C => {
+                self.c = value;
+            }
+            Operand::R8_D => {
+                self.d = value;
+            }
+            Operand::R8_E => {
+                self.e = value;
+            }
+            Operand::R8_H => {
+                self.h = value;
+            }
+            Operand::R8_L => {
+                self.l = value;
+            }
+            _ => panic!("SET_R8 : INVALID REGISTER ({:?})", r8),
+        };
     }
 
-    pub fn set_c(&mut self, value: u8) {
-        self.c = value;
+    pub fn get_r16(&self, r16: Operand) -> u16 {
+        return match r16 {
+            Operand::R16_BC => u16::from_le_bytes([self.b, self.c]),
+            Operand::R16_DE => u16::from_le_bytes([self.d, self.e]),
+            Operand::R16_HL => u16::from_le_bytes([self.h, self.l]),
+            Operand::R16_SP => self.sp,
+            _ => panic!("GET_R16 : INVALID REGISTER ({:?})", r16),
+        };
     }
 
-    pub fn get_bc(&self) -> u16 {
-        return u16::from_le_bytes([self.b, self.c]);
-    }
-
-    pub fn set_bc(&mut self, value: u16) {
+    pub fn set_r16(&mut self, r16: Operand, value: u16) {
         let bytes = value.to_le_bytes();
-        self.b = bytes[0];
-        self.c = bytes[1];
+        match r16 {
+            Operand::R16_BC => {
+                self.b = bytes[0];
+                self.c = bytes[1];
+            }
+            Operand::R16_DE => {
+                self.d = bytes[0];
+                self.e = bytes[1];
+            }
+            Operand::R16_HL => {
+                self.h = bytes[0];
+                self.l = bytes[1];
+            }
+            Operand::R16_SP => {
+                self.sp = value;
+            }
+            _ => panic!("SET_R16 : INVALID REGISTER ({:?})", r16),
+        };
     }
 
-    pub fn get_d(&self) -> u8 {
-        return self.d;
-    }
-
-    pub fn set_d(&mut self, value: u8) {
-        self.d = value;
-    }
-
-    pub fn get_e(&self) -> u8 {
-        return self.e;
-    }
-
-    pub fn set_e(&mut self, value: u8) {
-        self.e = value;
-    }
-
-    pub fn get_de(&self) -> u16 {
-        return u16::from_le_bytes([self.d, self.e]);
-    }
-
-    pub fn set_de(&mut self, value: u16) {
-        let bytes = value.to_le_bytes();
-        self.d = bytes[0];
-        self.e = bytes[1];
-    }
-
-    pub fn get_h(&self) -> u8 {
-        return self.h;
-    }
-
-    pub fn set_h(&mut self, value: u8) {
-        self.h = value;
-    }
-
-    pub fn get_l(&self) -> u8 {
-        return self.l;
-    }
-
-    pub fn set_l(&mut self, value: u8) {
-        self.l = value;
-    }
-
-    pub fn get_hl(&self) -> u16 {
-        return u16::from_le_bytes([self.h, self.l]);
-    }
-
-    pub fn set_hl(&mut self, value: u16) {
-        let bytes = value.to_le_bytes();
-        self.h = bytes[0];
-        self.l = bytes[1];
-    }
-
-    pub fn get_sp(&self) -> u16 {
-        return self.sp;
-    }
-
-    pub fn set_sp(&mut self, value: u16) {
-        self.sp = value;
-    }
-
-    pub fn get_pc(&self) -> u16 {
+    pub fn get_program_counter(&self) -> u16 {
         return self.pc;
     }
 
-    pub fn set_pc(&mut self, value: u16) {
+    pub fn set_program_counter(&mut self, value: u16) {
         self.pc = value;
     }
 
-    pub fn increment_pc(&mut self, offset: i8) {
+    pub fn offset_program_counter(&mut self, offset: i8) {
         if offset > 0 {
             self.pc = self.pc.wrapping_add(offset.abs() as u16);
         } else {
