@@ -1,9 +1,10 @@
 use core::fmt;
-use std::path::Display;
+use std::{fmt::format, path::Display};
 
 use crate::{gameboy::Gameboy, memory::Memory};
 
-#[derive(Debug, Clone, Copy)]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
 pub enum Operand {
     R8_A,
     R8_B,
@@ -18,16 +19,21 @@ pub enum Operand {
     R16_SP,
     R16_HLD,
     CC_NZ,
+    IMM8(u8),
+    IMM8_SIGNED(i8),
+    IMM16(u16),
+    PTR(Box<Operand>),
 }
+
+#[allow(non_camel_case_types)]
 pub enum Operation {
     NOP,
-    LD_R16_IMM16 { r16: Operand, imm16: u16 },
-    LD_R8_IMM8 { r8: Operand, imm8: u8 },
-    LD_PTR_R8 { ptr: Operand, r8: Operand },
-    DEC_R8 { r8: Operand },
-    JP_IMM16 { imm16: u16 },
-    JR_CC_R8 { cc: Operand, imm8: i8 },
-    XOR_A_R8 { r8: Operand },
+    LD { dst: Operand, src: Operand },
+    DEC { x: Operand },
+    JP { addr: Operand },
+    JR_CC { cc: Operand, offset: Operand },
+    XOR { x: Operand, y: Operand },
+    BIT { bit: u8, src: Operand },
 }
 
 pub struct Instruction {
@@ -35,23 +41,13 @@ pub struct Instruction {
     pub size: u16,
 }
 
-impl fmt::Display for Instruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", get_instruction_assembly(self))
-    }
-}
-
-impl fmt::Display for Operand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", operand_to_str(self))
-    }
-}
-
 pub fn decode_next_instruction(console: &Gameboy) -> Instruction {
     let pc = console.cpu().get_program_counter();
     return decode_instruction(console, pc);
 }
 
+// https://meganesu.github.io/generate-gb-opcodes/
+// https://gbdev.io/gb-opcodes/optables/ (seems to correct a few mistakes)
 pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
     let instr = console.memory().read_byte(address);
 
@@ -65,9 +61,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x01 => {
             // ld bc, imm16
             return Instruction {
-                op: Operation::LD_R16_IMM16 {
-                    r16: Operand::R16_BC,
-                    imm16: console.memory().read_word(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R16_BC,
+                    src: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
             };
@@ -75,16 +71,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x05 => {
             // dec b
             return Instruction {
-                op: Operation::DEC_R8 { r8: Operand::R8_B },
+                op: Operation::DEC { x: Operand::R8_B },
                 size: 1,
             };
         }
         0x06 => {
             // ld b, imm8
             return Instruction {
-                op: Operation::LD_R8_IMM8 {
-                    r8: Operand::R8_B,
-                    imm8: console.memory().read_byte(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R8_B,
+                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
                 },
                 size: 2,
             };
@@ -92,16 +88,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x0D => {
             // dec c
             return Instruction {
-                op: Operation::DEC_R8 { r8: Operand::R8_C },
+                op: Operation::DEC { x: Operand::R8_C },
                 size: 1,
             };
         }
         0x0E => {
             // ld c, imm8
             return Instruction {
-                op: Operation::LD_R8_IMM8 {
-                    r8: Operand::R8_C,
-                    imm8: console.memory().read_byte(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R8_C,
+                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
                 },
                 size: 2,
             };
@@ -109,9 +105,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x11 => {
             // ld de, imm16
             return Instruction {
-                op: Operation::LD_R16_IMM16 {
-                    r16: Operand::R16_DE,
-                    imm16: console.memory().read_word(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R16_DE,
+                    src: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
             };
@@ -119,10 +115,12 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x20 => {
             // jr nz, imm8
             return Instruction {
-                op: Operation::JR_CC_R8 {
+                op: Operation::JR_CC {
                     cc: Operand::CC_NZ,
                     // the relative jump offset is signed
-                    imm8: i8::from_le_bytes([console.memory().read_byte(address + 1)]),
+                    offset: Operand::IMM8_SIGNED(i8::from_le_bytes([console
+                        .memory()
+                        .read_byte(address + 1)])),
                 },
                 size: 2,
             };
@@ -130,9 +128,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x21 => {
             // ld hl, imm16
             return Instruction {
-                op: Operation::LD_R16_IMM16 {
-                    r16: Operand::R16_HL,
-                    imm16: console.memory().read_word(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R16_HL,
+                    src: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
             };
@@ -140,9 +138,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x31 => {
             // ld sp, imm16
             return Instruction {
-                op: Operation::LD_R16_IMM16 {
-                    r16: Operand::R16_SP,
-                    imm16: console.memory().read_word(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R16_SP,
+                    src: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
             };
@@ -150,9 +148,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x32 => {
             // ld (hl-), a
             return Instruction {
-                op: Operation::LD_PTR_R8 {
-                    ptr: Operand::R16_HLD,
-                    r8: Operand::R8_A,
+                op: Operation::LD {
+                    dst: Operand::PTR(Box::new(Operand::R16_HLD)),
+                    src: Operand::R8_A,
                 },
                 size: 1,
             };
@@ -160,9 +158,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x3E => {
             // ld a, imm8
             return Instruction {
-                op: Operation::LD_R8_IMM8 {
-                    r8: Operand::R8_A,
-                    imm8: console.memory().read_byte(address + 1),
+                op: Operation::LD {
+                    dst: Operand::R8_A,
+                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
                 },
                 size: 2,
             };
@@ -191,18 +189,41 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xAF => {
             // xor a, a
             return Instruction {
-                op: Operation::XOR_A_R8 { r8: Operand::R8_A },
+                op: Operation::XOR {
+                    x: Operand::R8_A,
+                    y: Operand::R8_A,
+                },
                 size: 1,
             };
         }
         0xC3 => {
             // jp imm16
             return Instruction {
-                op: Operation::JP_IMM16 {
-                    imm16: console.memory().read_word(address + 1),
+                op: Operation::JP {
+                    addr: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
             };
+        }
+        0xCB => {
+            //prefixed bit manipulation instructions
+            let other_byte = console.memory().read_byte(address + 1);
+            match other_byte {
+                0x7C => {
+                    // bit 7, h
+                    return Instruction {
+                        op: Operation::BIT {
+                            bit: 7,
+                            src: Operand::R8_H,
+                        },
+                        size: 2,
+                    };
+                }
+                _ => panic!(
+                    "DECODING : UNHANDLED INSTRUCTION (0xCB{:02X}) at PC {:#06X}",
+                    other_byte, address
+                ),
+            }
         }
 
         _ => panic!(
@@ -218,38 +239,48 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
     )
 }
 
-pub fn get_instruction_assembly(instr: &Instruction) -> String {
-    match &instr.op {
-        Operation::NOP => String::from("nop"),
-        Operation::LD_R16_IMM16 { r16, imm16 } => {
-            format!("ld {r16}, {:#06X}", imm16)
-        }
-        Operation::LD_R8_IMM8 { r8, imm8 } => {
-            format!("ld {r8}, {:#04X}", imm8)
-        }
-        Operation::LD_PTR_R8 { ptr, r8 } => format!("ld ({ptr}), {r8}"),
-        Operation::DEC_R8 { r8 } => format!("dec {r8}"),
-        Operation::JP_IMM16 { imm16 } => format!("jp {:#06X}", imm16),
-        Operation::JR_CC_R8 { cc, imm8 } => format!("jr {cc}, {}", imm8),
-        Operation::XOR_A_R8 { r8 } => format!("xor a, {r8}"),
-        _ => todo!("get_instruction_assembly : unhandled operation type"),
+fn operand_to_string(operand: &Operand) -> String {
+    match operand {
+        Operand::R8_A => String::from("a"),
+        Operand::R8_B => String::from("b"),
+        Operand::R8_C => String::from("c"),
+        Operand::R8_D => String::from("d"),
+        Operand::R8_E => String::from("e"),
+        Operand::R8_H => String::from("h"),
+        Operand::R8_L => String::from("l"),
+        Operand::R16_BC => String::from("bc"),
+        Operand::R16_DE => String::from("de"),
+        Operand::R16_HL => String::from("hl"),
+        Operand::R16_SP => String::from("sp"),
+        Operand::R16_HLD => String::from("hl-"),
+        Operand::CC_NZ => String::from("nz"),
+        Operand::IMM8(imm8) => format!("{:#04X}", imm8),
+        Operand::IMM8_SIGNED(imm8) => format!("{}", imm8),
+        Operand::IMM16(imm16) => format!("{:#06X}", imm16),
+        Operand::PTR(ptr) => format!("({})", operand_to_string(ptr)),
     }
 }
 
-fn operand_to_str(operand: &Operand) -> &'static str {
-    match operand {
-        Operand::R8_A => "a",
-        Operand::R8_B => "b",
-        Operand::R8_C => "c",
-        Operand::R8_D => "d",
-        Operand::R8_E => "e",
-        Operand::R8_H => "h",
-        Operand::R8_L => "l",
-        Operand::R16_BC => "bc",
-        Operand::R16_DE => "de",
-        Operand::R16_HL => "hl",
-        Operand::R16_SP => "sp",
-        Operand::R16_HLD => "hl-",
-        Operand::CC_NZ => "nz",
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", operand_to_string(self))
+    }
+}
+
+pub fn instruction_to_string(instr: &Instruction) -> String {
+    match &instr.op {
+        Operation::NOP => String::from("nop"),
+        Operation::LD { dst, src } => format!("ld {dst}, {src}"),
+        Operation::DEC { x } => format!("dec {x}"),
+        Operation::JP { addr } => format! {"jp {addr}"},
+        Operation::JR_CC { cc, offset } => format!("jr {cc}, {offset}"),
+        Operation::XOR { x, y } => format!("xor {x}, {y}"),
+        Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
+    }
+}
+
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", instruction_to_string(self))
     }
 }

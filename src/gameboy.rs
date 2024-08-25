@@ -1,6 +1,3 @@
-use log::{debug, trace};
-use paste::paste;
-
 use crate::{
     cpu::CPU,
     decoding::{self, Instruction, Operand, Operation},
@@ -45,7 +42,21 @@ impl Gameboy {
             Operation::NOP => {
                 self.cpu.offset_program_counter(1);
             }
-            Operation::JP_IMM16 { imm16 } => {
+            Operation::LD { dst, src } => match dst {
+                // load into a 8-bit register
+                R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => match src {
+                    IMM8(imm8) => {
+                        todo!()
+                    }
+                    PTR(ptr) => {
+                        todo!()
+                    }
+
+                    _ => panic!("LD : UNHANDLED SOURCE"),
+                },
+                _ => panic!("LD : UNHANDLED DESTINATION"),
+            },
+            /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
             }
             Operation::JR_CC_R8 { cc, imm8 } => {
@@ -86,7 +97,7 @@ impl Gameboy {
 
                 self.cpu.increment_program_counter(instr.size);
             }
-            Operation::DEC_R8 { r8 } => {
+            Operation::DEC { x: r8 } => {
                 let reg = self.cpu.get_r8(r8);
                 let result = reg.wrapping_sub(1);
 
@@ -97,11 +108,9 @@ impl Gameboy {
                 self.cpu.set_r8(r8, result);
 
                 self.cpu.increment_program_counter(instr.size);
-            }
-
+            } */
             _ => panic!(
-                "EXECUTION : UNHANDLED INSTRUCTION ({}) at PC {:#06X}",
-                instr,
+                "EXECUTION : UNHANDLED INSTRUCTION ({instr}) at PC {:#06X}",
                 self.cpu.get_program_counter()
             ),
         }
