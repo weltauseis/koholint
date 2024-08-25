@@ -278,6 +278,163 @@ impl Gameboy {
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(true);
             }
+            Operation::RL { x } => {
+                match x {
+                    // rotate 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let mut to_rotate = self.cpu.read_r8(&x);
+
+                        // b7 to carry
+                        let previous_carry: u8 = if self.cpu.read_c_flag() { 1 } else { 0 };
+                        self.cpu.write_c_flag((to_rotate >> 7) & 1 == 1);
+
+                        // rotate number left with carry
+                        to_rotate <<= 1;
+                        to_rotate |= previous_carry;
+
+                        // write back the number
+                        self.cpu.write_r8(&x, to_rotate);
+                    }
+                    // rotate memory byte
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let address = self.cpu.read_r16(&ptr);
+                            let mut to_rotate = self.memory.read_byte(address);
+
+                            // b7 to carry
+                            let previous_carry: u8 = if self.cpu.read_c_flag() { 1 } else { 0 };
+                            self.cpu.write_c_flag((to_rotate >> 7) & 1 == 1);
+
+                            // rotate number left with carry
+                            to_rotate <<= 1;
+                            to_rotate |= previous_carry;
+
+                            // write back the number
+                            self.memory.write_byte(address, to_rotate);
+                        }
+                        _ => panic!("(CRITICAL) RL : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) RL : ILLEGAL OPERAND {x} at {pc:#06X}"),
+                }
+            }
+            Operation::RR { x } => {
+                match x {
+                    // rotate 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let mut to_rotate = self.cpu.read_r8(&x);
+
+                        // b0 to carry
+                        let previous_carry: u8 = if self.cpu.read_c_flag() { 1 } else { 0 };
+                        self.cpu.write_c_flag((to_rotate) & 1 == 1);
+
+                        // rotate number right with carry
+                        to_rotate >>= 1;
+                        to_rotate |= previous_carry << 7;
+
+                        // write back the number
+                        self.cpu.write_r8(&x, to_rotate);
+                    }
+                    // rotate memory byte
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let address = self.cpu.read_r16(&ptr);
+                            let mut to_rotate = self.memory.read_byte(address);
+
+                            // b0 to carry
+                            let previous_carry: u8 = if self.cpu.read_c_flag() { 1 } else { 0 };
+                            self.cpu.write_c_flag((to_rotate) & 1 == 1);
+
+                            // rotate number right with carry
+                            to_rotate >>= 1;
+                            to_rotate |= previous_carry << 7;
+
+                            // write back the number
+                            self.memory.write_byte(address, to_rotate);
+                        }
+                        _ => panic!("(CRITICAL) RR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) RR : ILLEGAL OPERAND {x} at {pc:#06X}"),
+                }
+            }
+            Operation::RLC { x } => {
+                match x {
+                    // rotate 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let mut to_rotate = self.cpu.read_r8(&x);
+
+                        // b7 to carry
+                        let previous_b7: u8 = (to_rotate >> 7) & 1;
+                        self.cpu.write_c_flag(previous_b7 == 1);
+
+                        // rotate number left with carry
+                        to_rotate <<= 1;
+                        to_rotate |= previous_b7;
+
+                        // write back the number
+                        self.cpu.write_r8(&x, to_rotate);
+                    }
+                    // rotate memory byte
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let address = self.cpu.read_r16(&ptr);
+                            let mut to_rotate = self.memory.read_byte(address);
+
+                            // b7 to carry
+                            let previous_b7: u8 = (to_rotate >> 7) & 1;
+                            self.cpu.write_c_flag(previous_b7 == 1);
+
+                            // rotate number left with carry
+                            to_rotate <<= 1;
+                            to_rotate |= previous_b7;
+
+                            // write back the number
+                            self.memory.write_byte(address, to_rotate);
+                        }
+                        _ => panic!("(CRITICAL) RLC : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) RLC : ILLEGAL OPERAND {x} at {pc:#06X}"),
+                }
+            }
+
+            Operation::RRC { x } => {
+                match x {
+                    // rotate 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let mut to_rotate = self.cpu.read_r8(&x);
+
+                        // b0 to carry
+                        let previous_b0: u8 = (to_rotate) & 1;
+                        self.cpu.write_c_flag(previous_b0 == 1);
+
+                        // rotate number left with carry
+                        to_rotate >>= 1;
+                        to_rotate |= previous_b0 << 7;
+
+                        // write back the number
+                        self.cpu.write_r8(&x, to_rotate);
+                    }
+                    // rotate memory byte
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let address = self.cpu.read_r16(&ptr);
+                            let mut to_rotate = self.memory.read_byte(address);
+
+                            // b0 to carry
+                            let previous_b0: u8 = (to_rotate) & 1;
+                            self.cpu.write_c_flag(previous_b0 == 1);
+
+                            // rotate number left with carry
+                            to_rotate >>= 1;
+                            to_rotate |= previous_b0 << 7;
+
+                            // write back the number
+                            self.memory.write_byte(address, to_rotate);
+                        }
+                        _ => panic!("(CRITICAL) RRC : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) RRC : ILLEGAL OPERAND {x} at {pc:#06X}"),
+                }
+            }
             Operation::JR_CC { cc, offset_oprd } => {
                 let should_jump = self.cpu.get_cc(&cc);
                 if should_jump {
@@ -303,6 +460,14 @@ impl Gameboy {
 
                 // jump to the procedure
                 self.cpu.write_program_counter(address);
+            }
+            Operation::PUSH { reg } => {
+                let to_push = match reg {
+                    R16_BC | R16_DE | R16_HL | R16_AF => self.cpu.read_r16(&reg),
+                    _ => panic!("(CRITICAL) PUSH : ILLEGAL OPERAND {reg} at {pc:#06X}"),
+                };
+
+                self.push_word(to_push);
             }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);

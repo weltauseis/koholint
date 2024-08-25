@@ -15,6 +15,7 @@ pub enum Operand {
     R16_BC,
     R16_DE,
     R16_HL,
+    R16_AF,
     R16_SP,
     R16_HLD,
     R16_HLI,
@@ -32,10 +33,15 @@ pub enum Operation {
     JP { addr: Operand },
     JR_CC { cc: Operand, offset_oprd: Operand },
     CALL { proc: Operand },
+    PUSH { reg: Operand },
     DEC { x: Operand },
     INC { x: Operand },
     XOR { y: Operand },
     BIT { bit: u8, src: Operand },
+    RL { x: Operand },
+    RR { x: Operand },
+    RLC { x: Operand },
+    RRC { x: Operand },
 }
 
 pub struct Instruction {
@@ -184,6 +190,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 2,
             };
         }
+        0x4F => {
+            // ld c, a
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::R8_C,
+                    src: Operand::R8_A,
+                },
+                size: 1,
+            };
+        }
         0x77 => {
             // ld (hl), a
             return Instruction {
@@ -231,10 +247,26 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 3,
             };
         }
+        0xC5 => {
+            // push bc
+            return Instruction {
+                op: Operation::PUSH {
+                    reg: Operand::R16_BC,
+                },
+                size: 1,
+            };
+        }
         0xCB => {
             //prefixed bit manipulation instructions
             let other_byte = console.memory().read_byte(address + 1);
             match other_byte {
+                0x11 => {
+                    // rl c
+                    return Instruction {
+                        op: Operation::RL { x: Operand::R8_C },
+                        size: 2,
+                    };
+                }
                 0x7C => {
                     // bit 7, h
                     return Instruction {
@@ -308,6 +340,7 @@ fn operand_to_string(operand: &Operand) -> String {
         Operand::R16_BC => String::from("bc"),
         Operand::R16_DE => String::from("de"),
         Operand::R16_HL => String::from("hl"),
+        Operand::R16_AF => String::from("af"),
         Operand::R16_SP => String::from("sp"),
         Operand::R16_HLD => String::from("hl-"),
         Operand::R16_HLI => String::from("hl+"),
@@ -335,10 +368,15 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
             offset_oprd: offset,
         } => format!("jr {cc}, {offset}"),
         Operation::CALL { proc } => format!("call {proc}"),
+        Operation::PUSH { reg: word } => format!("push {word}"),
         Operation::DEC { x } => format!("dec {x}"),
         Operation::INC { x } => format!("inc {x}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
+        Operation::RL { x } => format!("rl {x}"),
+        Operation::RR { x } => format!("rr {x}"),
+        Operation::RLC { x } => format!("rlc {x}"),
+        Operation::RRC { x } => format!("rrc {x}"),
     }
 }
 
