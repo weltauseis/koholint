@@ -18,6 +18,7 @@ pub enum Operand {
     R16_HL,
     R16_SP,
     R16_HLD,
+    R16_HLI,
     CC_NZ,
     IMM8(u8),
     IMM8_SIGNED(i8),
@@ -32,7 +33,7 @@ pub enum Operation {
     DEC { x: Operand },
     JP { addr: Operand },
     JR_CC { cc: Operand, offset: Operand },
-    XOR { x: Operand, y: Operand },
+    XOR { y: Operand },
     BIT { bit: u8, src: Operand },
 }
 
@@ -42,7 +43,7 @@ pub struct Instruction {
 }
 
 pub fn decode_next_instruction(console: &Gameboy) -> Instruction {
-    let pc = console.cpu().get_program_counter();
+    let pc = console.cpu().read_program_counter();
     return decode_instruction(console, pc);
 }
 
@@ -189,10 +190,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xAF => {
             // xor a, a
             return Instruction {
-                op: Operation::XOR {
-                    x: Operand::R8_A,
-                    y: Operand::R8_A,
-                },
+                op: Operation::XOR { y: Operand::R8_A },
                 size: 1,
             };
         }
@@ -253,6 +251,7 @@ fn operand_to_string(operand: &Operand) -> String {
         Operand::R16_HL => String::from("hl"),
         Operand::R16_SP => String::from("sp"),
         Operand::R16_HLD => String::from("hl-"),
+        Operand::R16_HLI => String::from("hl+"),
         Operand::CC_NZ => String::from("nz"),
         Operand::IMM8(imm8) => format!("{:#04X}", imm8),
         Operand::IMM8_SIGNED(imm8) => format!("{}", imm8),
@@ -274,7 +273,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::DEC { x } => format!("dec {x}"),
         Operation::JP { addr } => format! {"jp {addr}"},
         Operation::JR_CC { cc, offset } => format!("jr {cc}, {offset}"),
-        Operation::XOR { x, y } => format!("xor {x}, {y}"),
+        Operation::XOR { y: x } => format!("xor a, {x}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
     }
 }

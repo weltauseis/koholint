@@ -9,7 +9,7 @@ pub fn debug_console(mut console: Gameboy) {
 
     loop {
         // prompt
-        print!("{:#06X} (dbg)> ", console.cpu().get_program_counter());
+        print!("{:#06X} (dbg)> ", console.cpu().read_program_counter());
         std::io::stdout().flush().unwrap();
 
         // get user input
@@ -45,7 +45,7 @@ pub fn debug_console(mut console: Gameboy) {
                 "list" | "l" => {
                     // TODO: find a way to show previous instructions
 
-                    let pc = console.cpu().get_program_counter();
+                    let pc = console.cpu().read_program_counter();
                     let mut to_list = match subcommands.get(1) {
                         None => 5,
                         Some(nb_string) => match nb_string.parse() {
@@ -77,7 +77,7 @@ pub fn debug_console(mut console: Gameboy) {
                 "continue" | "c" => loop {
                     console.step();
 
-                    let pc = console.cpu().get_program_counter();
+                    let pc = console.cpu().read_program_counter();
                     if breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
                         println!("Reached breakpoint ({:#06X})", pc);
                         break;

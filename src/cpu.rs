@@ -39,53 +39,13 @@ impl CPU {
     }
 
     // accessors
-    pub fn get_a_register(&self) -> u8 {
-        return self.a;
-    }
-
-    pub fn get_b_register(&self) -> u8 {
-        return self.b;
-    }
-
-    pub fn get_c_register(&self) -> u8 {
-        return self.c;
-    }
-
-    pub fn get_d_register(&self) -> u8 {
-        return self.d;
-    }
-
-    pub fn get_e_register(&self) -> u8 {
-        return self.e;
-    }
-
-    pub fn get_h_register(&self) -> u8 {
-        return self.h;
-    }
-
-    pub fn get_l_register(&self) -> u8 {
-        return self.l;
-    }
-
-    pub fn get_bc_register(&self) -> u16 {
-        return u16::from_le_bytes([self.b, self.c]);
-    }
-
-    pub fn get_de_register(&self) -> u16 {
-        return u16::from_le_bytes([self.d, self.e]);
-    }
-
-    pub fn get_hl_register(&self) -> u16 {
-        return u16::from_le_bytes([self.h, self.l]);
-    }
-
-    pub fn get_stack_pointer(&self) -> u16 {
+    pub fn read_stack_pointer(&self) -> u16 {
         return self.sp;
     }
 
     // functions to access the registers using an instruction operand
 
-    pub fn get_r8(&self, r8: Operand) -> u8 {
+    pub fn read_r8(&self, r8: Operand) -> u8 {
         return match r8 {
             Operand::R8_A => self.a,
             Operand::R8_B => self.b,
@@ -98,7 +58,7 @@ impl CPU {
         };
     }
 
-    pub fn set_r8(&mut self, r8: Operand, value: u8) {
+    pub fn write_r8(&mut self, r8: Operand, value: u8) {
         match r8 {
             Operand::R8_A => {
                 self.a = value;
@@ -125,7 +85,7 @@ impl CPU {
         };
     }
 
-    pub fn get_r16(&self, r16: Operand) -> u16 {
+    pub fn read_r16(&self, r16: Operand) -> u16 {
         return match r16 {
             Operand::R16_BC => u16::from_le_bytes([self.b, self.c]),
             Operand::R16_DE => u16::from_le_bytes([self.d, self.e]),
@@ -135,7 +95,7 @@ impl CPU {
         };
     }
 
-    pub fn set_r16(&mut self, r16: Operand, value: u16) {
+    pub fn write_r16(&mut self, r16: Operand, value: u16) {
         let bytes = value.to_le_bytes();
         match r16 {
             Operand::R16_BC => {
@@ -157,11 +117,11 @@ impl CPU {
         };
     }
 
-    pub fn get_program_counter(&self) -> u16 {
+    pub fn read_program_counter(&self) -> u16 {
         return self.pc;
     }
 
-    pub fn set_program_counter(&mut self, value: u16) {
+    pub fn write_program_counter(&mut self, value: u16) {
         self.pc = value;
     }
 
@@ -181,11 +141,11 @@ impl CPU {
     // 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 (bit n°)
     // Z | N | H | C | 0 | 0 | 0 | 0 (flag)
 
-    pub fn get_z_flag(&self) -> bool {
+    pub fn read_z_flag(&self) -> bool {
         return ((self.f >> 7) & 1) == 1;
     }
 
-    pub fn set_z_flag(&mut self, value: bool) {
+    pub fn write_z_flag(&mut self, value: bool) {
         if value {
             self.f |= 0b_1000_0000;
         } else {
@@ -193,11 +153,11 @@ impl CPU {
         }
     }
 
-    pub fn get_n_flag(&self) -> bool {
+    pub fn read_n_flag(&self) -> bool {
         return ((self.f >> 6) & 1) == 1;
     }
 
-    pub fn set_n_flag(&mut self, value: bool) {
+    pub fn write_n_flag(&mut self, value: bool) {
         if value {
             self.f |= 0b_0100_0000;
         } else {
@@ -205,11 +165,11 @@ impl CPU {
         }
     }
 
-    pub fn get_h_flag(&self) -> bool {
+    pub fn read_h_flag(&self) -> bool {
         return ((self.f >> 5) & 1) == 1;
     }
 
-    pub fn set_h_flag(&mut self, value: bool) {
+    pub fn write_h_flag(&mut self, value: bool) {
         if value {
             self.f |= 0b_0010_0000;
         } else {
@@ -217,10 +177,22 @@ impl CPU {
         }
     }
 
+    pub fn read_c_flag(&self) -> bool {
+        return ((self.f >> 4) & 1) == 1;
+    }
+
+    pub fn write_c_flag(&mut self, value: bool) {
+        if value {
+            self.f |= 0b_0001_0000;
+        } else {
+            self.f &= !0b_0001_0000;
+        }
+    }
+
     // access flags using a condition operand
     pub fn get_cc(&self, cc: Operand) -> bool {
         match cc {
-            Operand::CC_NZ => !self.get_z_flag(),
+            Operand::CC_NZ => !self.read_z_flag(),
             _ => panic!("GET_CC : INVALID CONDITION ({:?})", cc),
         }
     }

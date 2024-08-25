@@ -38,24 +38,112 @@ impl Gameboy {
 
     fn execute_instruction(&mut self, instr: Instruction) {
         use Operand::*;
+
+        // increment PC before everything
+        // seems consistent with the fact that relative jumps
+        // are relative to the end of the jr instructionss
+
+        self.cpu.increment_program_counter(instr.size);
+
         match instr.op {
             Operation::NOP => {
-                self.cpu.offset_program_counter(1);
+                // nothing to do
             }
-            Operation::LD { dst, src } => match dst {
-                // load into a 8-bit register
-                R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => match src {
-                    IMM8(imm8) => {
-                        todo!()
-                    }
-                    PTR(ptr) => {
-                        todo!()
-                    }
+            Operation::LD { dst, src } => {
+                // some instructions auto-increment the hl register
+                // the timing is important
+                let mut decrement_hl = false;
+                let mut increment_hl = false;
 
-                    _ => panic!("LD : UNHANDLED SOURCE"),
-                },
-                _ => panic!("LD : UNHANDLED DESTINATION"),
-            },
+                match dst {
+                    // load into a 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => match src {
+                        /*  IMM8(imm8) => {
+                            todo!()
+                        }
+                        PTR(ptr) => {
+                            todo!()
+                        } */
+                        _ => panic!("LD : UNHANDLED SOURCE"),
+                    },
+                    // load into a 16-bit register
+                    R16_BC | R16_DE | R16_HL | R16_SP => match src {
+                        IMM16(imm16) => {
+                            self.cpu.write_r16(dst, imm16);
+                        }
+                        _ => panic!("LD : UNHANDLED SOURCE"),
+                    },
+                    // load into memory
+                    PTR(ptr) => {
+                        let address = match *ptr {
+                            // address from pointer in r16
+                            R16_BC | R16_DE | R16_HL | R16_HLD | R16_HLI => {
+                                if matches!(*ptr, R16_HLI) {
+                                    increment_hl = true;
+                                }
+                                if matches!(*ptr, R16_HLD) {
+                                    decrement_hl = true;
+                                }
+                                self.cpu.read_r16(*ptr)
+                            }
+                            // address from immediate word
+                            IMM16(address) => address,
+                            // address from r8 : IO memory
+                            R8_C => 0xFF00 + self.cpu.read_r8(R8_C) as u16,
+                            // address from imm8 : IO memory
+                            IMM8(imm8) => 0xFF00 + imm8 as u16,
+                            _ => panic!("(CRITICAL) LD : ILLEGAL DST POINTER {ptr}"),
+                        };
+
+                        match src {
+                            // load byte from r8
+                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                                self.memory.write_byte(address, self.cpu.read_r8(src));
+                            }
+                            // load word from sp register
+                            R16_SP => {
+                                self.memory.write_word(address, self.cpu.read_r16(R16_SP));
+                            }
+                            // load immediate byte
+                            IMM8(imm8) => {
+                                self.memory.write_byte(address, imm8);
+                            }
+                            _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src}"),
+                        }
+                    }
+                    _ => panic!("LD : UNHANDLED DESTINATION"),
+                }
+
+                if increment_hl {
+                    self.cpu
+                        .write_r16(R16_HL, self.cpu.read_r16(R16_HL).wrapping_add(1));
+                }
+                if decrement_hl {
+                    self.cpu
+                        .write_r16(R16_HL, self.cpu.read_r16(R16_HL).wrapping_sub(1));
+                }
+            }
+            Operation::XOR { y } => {
+                // xor is always done with the a register as first operand (x)
+                let a = self.cpu.read_r8(R8_A);
+                let other = match y {
+                    // second operand can only be another 8-bit register or pointer in hl
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(y),
+                    PTR(ptr) => match *ptr {
+                        R16_HL => self.memory.read_byte(self.cpu.read_r16(R16_HL)),
+                        _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr}"),
+                    },
+                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y}"),
+                };
+
+                self.cpu.write_r8(R8_A, a ^ other);
+
+                // xor flags : Z 0 0 0
+                self.cpu.write_z_flag(self.cpu.read_r8(R8_A) == 0);
+                self.cpu.write_n_flag(false);
+                self.cpu.write_h_flag(false);
+                self.cpu.write_c_flag(false);
+            }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
             }
@@ -92,11 +180,6 @@ impl Gameboy {
 
                 self.cpu.increment_program_counter(instr.size);
             }
-            Operation::LD_R16_IMM16 { r16, imm16 } => {
-                self.cpu.set_r16(r16, imm16);
-
-                self.cpu.increment_program_counter(instr.size);
-            }
             Operation::DEC { x: r8 } => {
                 let reg = self.cpu.get_r8(r8);
                 let result = reg.wrapping_sub(1);
@@ -111,7 +194,7 @@ impl Gameboy {
             } */
             _ => panic!(
                 "EXECUTION : UNHANDLED INSTRUCTION ({instr}) at PC {:#06X}",
-                self.cpu.get_program_counter()
+                self.cpu.read_program_counter()
             ),
         }
 

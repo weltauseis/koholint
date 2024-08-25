@@ -115,7 +115,6 @@ impl Memory {
             }
             _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
         }
-        //self.memory[address] = value;
     }
 
     pub fn read_word(&self, address: u16) -> u16 {
@@ -139,10 +138,9 @@ impl Memory {
         }
     }
 
-    /*
-    pub fn write_word(&mut self, address: usize, value: u16) {
+    pub fn write_word(&mut self, address: u16, value: u16) {
         let value_bytes = value.to_le_bytes();
-        self.memory[address] = value_bytes[0];
-        self.memory[address + 1] = value_bytes[1];
-    } */
+        self.write_byte(address, value_bytes[0]);
+        self.write_byte(address + 1, value_bytes[1]);
+    }
 }
