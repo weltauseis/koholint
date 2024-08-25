@@ -42,6 +42,10 @@ pub enum Operation {
     RR { x: Operand },
     RLC { x: Operand },
     RRC { x: Operand },
+    RLA,
+    RRA,
+    RLCA,
+    RRCA,
 }
 
 pub struct Instruction {
@@ -125,6 +129,13 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
+            };
+        }
+        0x17 => {
+            // rla
+            return Instruction {
+                op: Operation::RLA,
+                size: 1,
             };
         }
         0x1A => {
@@ -377,6 +388,10 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RR { x } => format!("rr {x}"),
         Operation::RLC { x } => format!("rlc {x}"),
         Operation::RRC { x } => format!("rrc {x}"),
+        Operation::RLA => String::from("rla"),
+        Operation::RRA => String::from("rra"),
+        Operation::RLCA => String::from("rlca"),
+        Operation::RRCA => String::from("rrca"),
     }
 }
 
