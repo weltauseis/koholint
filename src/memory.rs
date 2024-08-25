@@ -6,6 +6,7 @@ use log::{info, trace, warn};
 
 pub struct Memory {
     rom_bank: [u8; 0x8000], // 0000-7FFF | 32 KiB ROM bank, no MBC support for now
+    vram: [u8; 0x2000],     // 8000-9FFF | 8KiB Video Ram
     wram: [u8; 0x4000],     // C000-CFFF | 4 KiB Work RAM
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
 }
@@ -15,6 +16,7 @@ impl Memory {
     pub fn new() -> Memory {
         return Memory {
             rom_bank: [0; 0x8000],
+            vram: [0; 0x2000],
             wram: [0; 0x4000],
             switchable_wram: [0; 0x4000],
         };
@@ -93,9 +95,21 @@ impl Memory {
 
     pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
+            // ROM
             0x0000..0x8000 => {
                 panic!("CANNOT WRITE TO ROM BANK");
             }
+            // VRAM
+            0x8000..0xA000 => {
+                trace!(
+                    "Wrote byte {:#04X} to VRAM at address {:#06X}",
+                    value,
+                    address
+                );
+                self.vram[(address - 0x8000) as usize] = value;
+            }
+
+            // WRAM
             0xC000..0xD000 => {
                 trace!(
                     "Wrote byte {:#04X} to WRAM at address {:#06X}",
