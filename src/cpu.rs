@@ -39,6 +39,52 @@ impl CPU {
     }
 
     // accessors
+    pub fn get_a_register(&self) -> u8 {
+        return self.a;
+    }
+
+    pub fn get_b_register(&self) -> u8 {
+        return self.b;
+    }
+
+    pub fn get_c_register(&self) -> u8 {
+        return self.c;
+    }
+
+    pub fn get_d_register(&self) -> u8 {
+        return self.d;
+    }
+
+    pub fn get_e_register(&self) -> u8 {
+        return self.e;
+    }
+
+    pub fn get_h_register(&self) -> u8 {
+        return self.h;
+    }
+
+    pub fn get_l_register(&self) -> u8 {
+        return self.l;
+    }
+
+    pub fn get_bc_register(&self) -> u16 {
+        return u16::from_le_bytes([self.b, self.c]);
+    }
+
+    pub fn get_de_register(&self) -> u16 {
+        return u16::from_le_bytes([self.d, self.e]);
+    }
+
+    pub fn get_hl_register(&self) -> u16 {
+        return u16::from_le_bytes([self.h, self.l]);
+    }
+
+    pub fn get_stack_pointer(&self) -> u16 {
+        return self.sp;
+    }
+
+    // functions to access the registers using an instruction operand
+
     pub fn get_r8(&self, r8: Operand) -> u8 {
         return match r8 {
             Operand::R8_A => self.a,

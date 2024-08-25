@@ -17,6 +17,7 @@ pub enum Operand {
     R16_HL,
     R16_SP,
     R16_HLD,
+    CC_NZ,
 }
 pub enum Operation {
     NOP,
@@ -25,6 +26,7 @@ pub enum Operation {
     LD_PTR_R8 { ptr: Operand, r8: Operand },
     DEC_R8 { r8: Operand },
     JP_IMM16 { imm16: u16 },
+    JR_CC_R8 { cc: Operand, imm8: i8 },
     XOR_A_R8 { r8: Operand },
 }
 
@@ -116,6 +118,13 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         }
         0x20 => {
             // jr nz, imm8
+            return Instruction {
+                op: Operation::JR_CC_R8 {
+                    cc: Operand::CC_NZ,
+                    imm8: i8::from_le_bytes([console.memory().read_byte(address + 1)]),
+                },
+                size: 2,
+            };
         }
         0x21 => {
             // ld hl, imm16
@@ -210,6 +219,7 @@ pub fn get_instruction_assembly(instr: &Instruction) -> String {
         Operation::LD_PTR_R8 { ptr, r8 } => format!("ld ({ptr}), {r8}"),
         Operation::DEC_R8 { r8 } => format!("dec {r8}"),
         Operation::JP_IMM16 { imm16 } => format!("jp {:#06X}", imm16),
+        Operation::JR_CC_R8 { cc, imm8 } => format!("jr {cc}, {}", imm8),
         Operation::XOR_A_R8 { r8 } => format!("xor a, {r8}"),
         _ => todo!("get_instruction_assembly : unhandled operation type"),
     }
@@ -229,5 +239,6 @@ fn operand_to_str(operand: &Operand) -> &'static str {
         Operand::R16_HL => "hl",
         Operand::R16_SP => "sp",
         Operand::R16_HLD => "hl-",
+        Operand::CC_NZ => "nz",
     }
 }

@@ -5,6 +5,8 @@ use crate::{gameboy::Gameboy, instructions::decode_instruction};
 pub fn debug_console(mut console: Gameboy) {
     println!("Welcome to my GBC debugger !");
 
+    let mut breakpoints: Vec<u16> = Vec::new();
+
     loop {
         // prompt
         print!("{:#06X} (dbg)> ", console.cpu().get_program_counter());
@@ -28,10 +30,13 @@ pub fn debug_console(mut console: Gameboy) {
             Some(cmd) => match *cmd {
                 "help" | "h" => {
                     println!("Available commands :");
-                    println!("  help : display this help message");
-                    println!("  exit : quit the debugger");
-                    println!("  list : print assembly at current program counter");
-                    println!("  next : execute current instruction");
+                    println!("  help     : display this help message");
+                    println!("  exit     : quit the debugger");
+                    println!("  list     : print assembly at current program counter");
+                    println!("  next     : execute current instruction");
+                    println!("  continue : resume execution until next beakpoint");
+                    println!("  break    : place a breakpoint at a specific program counter");
+                    println!("  remove   : remove a breakpoint at a specific program counter");
                 }
                 "exit" => {
                     println!("Exiting debugger...");
@@ -71,6 +76,55 @@ pub fn debug_console(mut console: Gameboy) {
                 }
                 "continue" | "c" => loop {
                     console.step();
+
+                    let pc = console.cpu().get_program_counter();
+                    if breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
+                        println!("Reached breakpoint ({:#06X})", pc);
+                        break;
+                    }
+                },
+                "break" | "b" => match subcommands.get(1) {
+                    None => {
+                        println!("Error : Missing breakpoint adress");
+                        continue;
+                    }
+                    Some(address_string) => {
+                        let address = match u16::from_str_radix(address_string, 16) {
+                            Ok(parsed) => parsed,
+                            Err(e) => {
+                                println!("Error : {e}");
+                                continue;
+                            }
+                        };
+
+                        if breakpoints.contains(&address) {
+                            println!("Error : Breakpoint is already placed");
+                            continue;
+                        }
+
+                        breakpoints.push(address);
+                    }
+                },
+                "remove" | "r" => match subcommands.get(1) {
+                    None => {
+                        println!("Error : Missing breakpoint adress");
+                        continue;
+                    }
+                    Some(address_string) => {
+                        let address = match address_string.parse::<u16>() {
+                            Ok(parsed) => parsed,
+                            Err(e) => {
+                                println!("Error : {e}");
+                                continue;
+                            }
+                        };
+
+                        if let Some(pos) = breakpoints.iter().position(|&x| x == address) {
+                            breakpoints.remove(pos);
+                        } else {
+                            println!("Error : Breakpoint not found");
+                        }
+                    }
                 },
                 _ => {
                     println!("Error : Unknown command ({})", subcommands[0]);
