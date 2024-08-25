@@ -39,6 +39,9 @@ impl Gameboy {
     fn execute_instruction(&mut self, instr: Instruction) {
         use Operand::*;
 
+        // store instruction pc for crash messages
+        let pc = self.cpu.read_program_counter();
+
         // increment PC before everything
         // seems consistent with the fact that relative jumps
         // are relative to the end of the jr instructionss
@@ -58,20 +61,21 @@ impl Gameboy {
                 match dst {
                     // load into a 8-bit register
                     R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => match src {
-                        /*  IMM8(imm8) => {
-                            todo!()
+                        IMM8(imm8) => {
+                            self.cpu.write_r8(&dst, imm8);
                         }
+                        /*
                         PTR(ptr) => {
                             todo!()
                         } */
-                        _ => panic!("LD : UNHANDLED SOURCE"),
+                        _ => panic!("LD : UNHANDLED SOURCE {src} at {pc:#06X}"),
                     },
                     // load into a 16-bit register
                     R16_BC | R16_DE | R16_HL | R16_SP => match src {
                         IMM16(imm16) => {
-                            self.cpu.write_r16(dst, imm16);
+                            self.cpu.write_r16(&dst, imm16);
                         }
-                        _ => panic!("LD : UNHANDLED SOURCE"),
+                        _ => panic!("LD : UNHANDLED SOURCE {src} at {pc:#06X}"),
                     },
                     // load into memory
                     PTR(ptr) => {
@@ -84,62 +88,136 @@ impl Gameboy {
                                 if matches!(*ptr, R16_HLD) {
                                     decrement_hl = true;
                                 }
-                                self.cpu.read_r16(*ptr)
+                                self.cpu.read_r16(&ptr)
                             }
                             // address from immediate word
                             IMM16(address) => address,
                             // address from r8 : IO memory
-                            R8_C => 0xFF00 + self.cpu.read_r8(R8_C) as u16,
+                            R8_C => 0xFF00 + self.cpu.read_r8(&R8_C) as u16,
                             // address from imm8 : IO memory
                             IMM8(imm8) => 0xFF00 + imm8 as u16,
-                            _ => panic!("(CRITICAL) LD : ILLEGAL DST POINTER {ptr}"),
+                            _ => {
+                                panic!("(CRITICAL) LD : ILLEGAL DST POINTER {ptr} at {pc:#06X}")
+                            }
                         };
 
                         match src {
                             // load byte from r8
                             R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
-                                self.memory.write_byte(address, self.cpu.read_r8(src));
+                                self.memory.write_byte(address, self.cpu.read_r8(&src));
                             }
                             // load word from sp register
                             R16_SP => {
-                                self.memory.write_word(address, self.cpu.read_r16(R16_SP));
+                                self.memory.write_word(address, self.cpu.read_r16(&R16_SP));
                             }
                             // load immediate byte
                             IMM8(imm8) => {
                                 self.memory.write_byte(address, imm8);
                             }
-                            _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src}"),
+                            _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
                         }
                     }
-                    _ => panic!("LD : UNHANDLED DESTINATION"),
+                    _ => panic!("LD : UNHANDLED DESTINATION {dst} at {pc:#06X}"),
                 }
 
                 if increment_hl {
                     self.cpu
-                        .write_r16(R16_HL, self.cpu.read_r16(R16_HL).wrapping_add(1));
+                        .write_r16(&R16_HL, self.cpu.read_r16(&R16_HL).wrapping_add(1));
                 }
                 if decrement_hl {
                     self.cpu
-                        .write_r16(R16_HL, self.cpu.read_r16(R16_HL).wrapping_sub(1));
+                        .write_r16(&R16_HL, self.cpu.read_r16(&R16_HL).wrapping_sub(1));
                 }
             }
+            Operation::INC { x } => match x {
+                // increment 8-bit register
+                R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                    let reg = self.cpu.read_r8(&x);
+                    let result = reg.wrapping_add(1);
+                    self.cpu.write_r8(&x, result);
+
+                    // inc flags : Z 0 H -
+                    self.cpu.write_z_flag(result == 0);
+                    self.cpu.write_n_flag(false);
+                    self.cpu.write_h_flag((reg & 0xF) == 0xF);
+                }
+                // increment 16-bit register
+                R16_BC | R16_DE | R16_HL | R16_SP => {
+                    let reg = self.cpu.read_r16(&x);
+                    let result = reg.wrapping_add(1);
+                    self.cpu.write_r16(&x, result);
+                }
+                // memory at address in hl
+                PTR(ptr) => match *ptr {
+                    R16_HL => {
+                        let address = self.cpu.read_r16(&R16_HL);
+                        let byte = self.memory.read_byte(address);
+                        let result = byte.wrapping_add(1);
+                        self.memory.write_byte(address, result);
+
+                        // inc flags : Z 0 H -
+                        self.cpu.write_z_flag(result == 0);
+                        self.cpu.write_n_flag(false);
+                        self.cpu.write_h_flag((byte & 0xF) == 0xF);
+                    }
+                    _ => panic!("(CRITICAL) INC : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                },
+
+                _ => panic!("(CRITICAL) INC : ILLEGAL OPERAND {x} at {pc:#06X}"),
+            },
+            Operation::DEC { x } => match x {
+                // decrement 8-bit register
+                R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                    let reg = self.cpu.read_r8(&x);
+                    let result = reg.wrapping_sub(1);
+                    self.cpu.write_r8(&x, result);
+
+                    // dec flags : Z 1 H -
+                    self.cpu.write_z_flag(result == 0);
+                    self.cpu.write_n_flag(true);
+                    self.cpu.write_h_flag((reg & 0xF) == 0);
+                }
+                // decrement 16-bit register
+                R16_BC | R16_DE | R16_HL | R16_SP => {
+                    let reg = self.cpu.read_r16(&x);
+                    let result = reg.wrapping_sub(1);
+                    self.cpu.write_r16(&x, result);
+                }
+                // memory at address in hl
+                PTR(ptr) => match *ptr {
+                    R16_HL => {
+                        let address = self.cpu.read_r16(&R16_HL);
+                        let byte = self.memory.read_byte(address);
+                        let result = byte.wrapping_sub(1);
+                        self.memory.write_byte(address, result);
+
+                        // dec flags : Z 1 H -
+                        self.cpu.write_z_flag(result == 0);
+                        self.cpu.write_n_flag(true);
+                        self.cpu.write_h_flag((byte & 0xF) == 0);
+                    }
+                    _ => panic!("(CRITICAL) DEC : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                },
+
+                _ => panic!("(CRITICAL) DEC : ILLEGAL OPERAND {x} at {pc:#06X}"),
+            },
             Operation::XOR { y } => {
                 // xor is always done with the a register as first operand (x)
-                let a = self.cpu.read_r8(R8_A);
+                let a = self.cpu.read_r8(&R8_A);
                 let other = match y {
                     // second operand can only be another 8-bit register or pointer in hl
-                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(y),
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
                     PTR(ptr) => match *ptr {
-                        R16_HL => self.memory.read_byte(self.cpu.read_r16(R16_HL)),
-                        _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr}"),
+                        R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
+                        _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                     },
-                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y}"),
+                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
                 };
 
-                self.cpu.write_r8(R8_A, a ^ other);
+                self.cpu.write_r8(&R8_A, a ^ other);
 
                 // xor flags : Z 0 0 0
-                self.cpu.write_z_flag(self.cpu.read_r8(R8_A) == 0);
+                self.cpu.write_z_flag(self.cpu.read_r8(&R8_A) == 0);
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(false);
                 self.cpu.write_c_flag(false);
@@ -149,13 +227,13 @@ impl Gameboy {
 
                 let byte = match src {
                     // test bit in 8-bit register
-                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(src),
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&src),
                     // test bit in memory
                     PTR(ptr) => match *ptr {
-                        R16_HL => self.memory.read_byte(self.cpu.read_r16(R16_HL)),
-                        _ => panic!("(CRITICAL) BIT : ILLEGAL POINTER {ptr}"),
+                        R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
+                        _ => panic!("(CRITICAL) BIT : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                     },
-                    _ => panic!("(CRITICAL) BIT : ILLEGAL SRC {src}"),
+                    _ => panic!("(CRITICAL) BIT : ILLEGAL SRC {src} at {pc:#06X}"),
                 };
 
                 // bit instruction flags : Z 0 1 -
@@ -163,15 +241,19 @@ impl Gameboy {
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(true);
             }
+            Operation::JR_CC { cc, offset_oprd } => {
+                let should_jump = self.cpu.get_cc(&cc);
+                if should_jump {
+                    let offset = match offset_oprd {
+                        IMM8_SIGNED(offset) => offset,
+                        _ => panic!("(CRITICAL) JR_CC : ILLEGAL OFFSET {offset_oprd} at {pc:#06X}"),
+                    };
+
+                    self.cpu.offset_program_counter(offset);
+                }
+            }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
-            }
-            Operation::JR_CC_R8 { cc, imm8 } => {
-                // THE OFFSET IS SIGNED !!
-                self.cpu.increment_program_counter(instr.size);
-                if self.cpu.get_cc(cc) {
-                    self.cpu.offset_program_counter(imm8);
-                }
             }
             Operation::XOR_A_R8 { r8 } => {
                 let a = self.cpu.get_r8(R8_A);

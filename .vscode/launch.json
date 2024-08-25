@@ -19,7 +19,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["roms/DR_MARIO.bin"],
+            "args": ["roms/DMG_ROM.bin"],
             "cwd": "${workspaceFolder}",
             "env": {"RUST_LOG": "trace"},
         },

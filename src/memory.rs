@@ -127,6 +127,12 @@ impl Memory {
                 self.switchable_wram[(address - 0xD000) as usize] = value;
                 warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
             }
+            0xFF00..0xFF80 => {
+                warn!(
+                    "CALL TO UNIMPLEMENTED IO MEMORY WRITE (ADDRESS {:#06X})",
+                    address
+                );
+            }
             _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
         }
     }

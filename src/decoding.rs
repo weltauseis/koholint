@@ -30,9 +30,10 @@ pub enum Operand {
 pub enum Operation {
     NOP,
     LD { dst: Operand, src: Operand },
-    DEC { x: Operand },
     JP { addr: Operand },
-    JR_CC { cc: Operand, offset: Operand },
+    JR_CC { cc: Operand, offset_oprd: Operand },
+    DEC { x: Operand },
+    INC { x: Operand },
     XOR { y: Operand },
     BIT { bit: u8, src: Operand },
 }
@@ -86,6 +87,13 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 2,
             };
         }
+        0x0C => {
+            // inc c
+            return Instruction {
+                op: Operation::INC { x: Operand::R8_C },
+                size: 1,
+            };
+        }
         0x0D => {
             // dec c
             return Instruction {
@@ -119,7 +127,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 op: Operation::JR_CC {
                     cc: Operand::CC_NZ,
                     // the relative jump offset is signed
-                    offset: Operand::IMM8_SIGNED(i8::from_le_bytes([console
+                    offset_oprd: Operand::IMM8_SIGNED(i8::from_le_bytes([console
                         .memory()
                         .read_byte(address + 1)])),
                 },
@@ -173,19 +181,19 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             // xor a, c
         }
         0xAA => {
-            // xor a, d");
+            // xor a, d
         }
         0xAB => {
-            // xor a, e");
+            // xor a, e
         }
         0xAC => {
-            // xor a, h");
+            // xor a, h
         }
         0xAD => {
-            // xor a, l");
+            // xor a, l
         }
         0xAE => {
-            // xor a, (hl)");
+            // xor a, (hl)
         }
         0xAF => {
             // xor a, a
@@ -222,6 +230,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     other_byte, address
                 ),
             }
+        }
+
+        0xE2 => {
+            // ld (c), a
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::PTR(Box::new(Operand::R8_C)),
+                    src: Operand::R8_A,
+                },
+                size: 1,
+            };
         }
 
         _ => panic!(
@@ -270,9 +289,13 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
     match &instr.op {
         Operation::NOP => String::from("nop"),
         Operation::LD { dst, src } => format!("ld {dst}, {src}"),
-        Operation::DEC { x } => format!("dec {x}"),
         Operation::JP { addr } => format! {"jp {addr}"},
-        Operation::JR_CC { cc, offset } => format!("jr {cc}, {offset}"),
+        Operation::JR_CC {
+            cc,
+            offset_oprd: offset,
+        } => format!("jr {cc}, {offset}"),
+        Operation::DEC { x } => format!("dec {x}"),
+        Operation::INC { x } => format!("inc {x}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
     }

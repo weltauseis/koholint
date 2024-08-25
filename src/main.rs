@@ -17,7 +17,7 @@ fn main() {
     env_logger::init();
 
     let rom = std::fs::read(&args[1]).unwrap();
-    let mut gameboy = Gameboy::new(rom);
+    let gameboy = Gameboy::new(rom);
 
     /* loop {
         gameboy.step();

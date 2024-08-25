@@ -45,7 +45,7 @@ impl CPU {
 
     // functions to access the registers using an instruction operand
 
-    pub fn read_r8(&self, r8: Operand) -> u8 {
+    pub fn read_r8(&self, r8: &Operand) -> u8 {
         return match r8 {
             Operand::R8_A => self.a,
             Operand::R8_B => self.b,
@@ -58,7 +58,7 @@ impl CPU {
         };
     }
 
-    pub fn write_r8(&mut self, r8: Operand, value: u8) {
+    pub fn write_r8(&mut self, r8: &Operand, value: u8) {
         match r8 {
             Operand::R8_A => {
                 self.a = value;
@@ -85,7 +85,7 @@ impl CPU {
         };
     }
 
-    pub fn read_r16(&self, r16: Operand) -> u16 {
+    pub fn read_r16(&self, r16: &Operand) -> u16 {
         return match r16 {
             Operand::R16_BC => u16::from_le_bytes([self.b, self.c]),
             Operand::R16_DE => u16::from_le_bytes([self.d, self.e]),
@@ -95,7 +95,7 @@ impl CPU {
         };
     }
 
-    pub fn write_r16(&mut self, r16: Operand, value: u16) {
+    pub fn write_r16(&mut self, r16: &Operand, value: u16) {
         let bytes = value.to_le_bytes();
         match r16 {
             Operand::R16_BC => {
@@ -190,7 +190,7 @@ impl CPU {
     }
 
     // access flags using a condition operand
-    pub fn get_cc(&self, cc: Operand) -> bool {
+    pub fn get_cc(&self, cc: &Operand) -> bool {
         match cc {
             Operand::CC_NZ => !self.read_z_flag(),
             _ => panic!("GET_CC : INVALID CONDITION ({:?})", cc),
