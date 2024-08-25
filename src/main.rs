@@ -3,8 +3,8 @@ use gameboy::Gameboy;
 
 mod cpu;
 mod debugger;
+mod decoding;
 mod gameboy;
-mod instructions;
 mod memory;
 
 fn main() {

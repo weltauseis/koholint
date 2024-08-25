@@ -121,6 +121,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: Operation::JR_CC_R8 {
                     cc: Operand::CC_NZ,
+                    // the relative jump offset is signed
                     imm8: i8::from_le_bytes([console.memory().read_byte(address + 1)]),
                 },
                 size: 2,
@@ -154,6 +155,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     r8: Operand::R8_A,
                 },
                 size: 1,
+            };
+        }
+        0x3E => {
+            // ld a, imm8
+            return Instruction {
+                op: Operation::LD_R8_IMM8 {
+                    r8: Operand::R8_A,
+                    imm8: console.memory().read_byte(address + 1),
+                },
+                size: 2,
             };
         }
         0xA8 => {

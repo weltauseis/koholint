@@ -3,7 +3,7 @@ use paste::paste;
 
 use crate::{
     cpu::CPU,
-    instructions::{self, Instruction, Operand, Operation},
+    decoding::{self, Instruction, Operand, Operation},
     memory::Memory,
 };
 
@@ -35,7 +35,7 @@ impl Gameboy {
     // functions
 
     pub fn step(&mut self) {
-        let instr = instructions::decode_next_instruction(&self);
+        let instr = decoding::decode_next_instruction(&self);
         self.execute_instruction(instr);
     }
 
@@ -47,6 +47,13 @@ impl Gameboy {
             }
             Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
+            }
+            Operation::JR_CC_R8 { cc, imm8 } => {
+                // THE OFFSET IS SIGNED !!
+                self.cpu.increment_program_counter(instr.size);
+                if self.cpu.get_cc(cc) {
+                    self.cpu.offset_program_counter(imm8);
+                }
             }
             Operation::XOR_A_R8 { r8 } => {
                 let a = self.cpu.get_r8(R8_A);

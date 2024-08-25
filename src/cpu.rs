@@ -1,4 +1,4 @@
-use crate::instructions::Operand;
+use crate::decoding::Operand;
 
 pub struct CPU {
     // 8 & 16 bits registers
@@ -214,6 +214,14 @@ impl CPU {
             self.f |= 0b_0010_0000;
         } else {
             self.f &= !0b_0010_0000;
+        }
+    }
+
+    // access flags using a condition operand
+    pub fn get_cc(&self, cc: Operand) -> bool {
+        match cc {
+            Operand::CC_NZ => !self.get_z_flag(),
+            _ => panic!("GET_CC : INVALID CONDITION ({:?})", cc),
         }
     }
 }

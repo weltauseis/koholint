@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{gameboy::Gameboy, instructions::decode_instruction};
+use crate::{decoding::decode_instruction, gameboy::Gameboy};
 
 pub fn debug_console(mut console: Gameboy) {
     println!("Welcome to my GBC debugger !");
@@ -111,7 +111,7 @@ pub fn debug_console(mut console: Gameboy) {
                         continue;
                     }
                     Some(address_string) => {
-                        let address = match address_string.parse::<u16>() {
+                        let address = match u16::from_str_radix(address_string, 16) {
                             Ok(parsed) => parsed,
                             Err(e) => {
                                 println!("Error : {e}");
