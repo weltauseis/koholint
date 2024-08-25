@@ -60,23 +60,60 @@ impl Gameboy {
 
                 match dst {
                     // load into a 8-bit register
-                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => match src {
-                        IMM8(imm8) => {
-                            self.cpu.write_r8(&dst, imm8);
-                        }
-                        /*
-                        PTR(ptr) => {
-                            todo!()
-                        } */
-                        _ => panic!("LD : UNHANDLED SOURCE {src} at {pc:#06X}"),
-                    },
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let byte = match src {
+                            // load from immediate byte
+                            IMM8(imm8) => imm8,
+
+                            // load from another 8-bit register
+                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                                self.cpu.read_r8(&src)
+                            }
+
+                            // load from memory with pointer
+                            PTR(ptr) => match *ptr {
+                                R16_BC | R16_DE | R16_HL | R16_HLD | R16_HLI => {
+                                    if matches!(*ptr, R16_HLI) {
+                                        increment_hl = true;
+                                    }
+                                    if matches!(*ptr, R16_HLD) {
+                                        decrement_hl = true;
+                                    }
+
+                                    let address = self.cpu.read_r16(&ptr);
+                                    self.memory.read_byte(address)
+                                }
+                                _ => panic!("(CRITICAL) LD : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                            },
+                            _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
+                        };
+
+                        self.cpu.write_r8(&dst, byte);
+                    }
                     // load into a 16-bit register
-                    R16_BC | R16_DE | R16_HL | R16_SP => match src {
-                        IMM16(imm16) => {
-                            self.cpu.write_r16(&dst, imm16);
-                        }
-                        _ => panic!("LD : UNHANDLED SOURCE {src} at {pc:#06X}"),
-                    },
+                    R16_BC | R16_DE | R16_HL | R16_SP => {
+                        let word = match src {
+                            // load from immediate word
+                            IMM16(imm16) => imm16,
+
+                            // load from another 16-bit register
+                            R16_BC | R16_DE | R16_HL | R16_SP => self.cpu.read_r16(&src),
+
+                            // load from memory
+                            // for 16-bit load, the memory location is always
+                            // relative to the stack pointer, with a signed offset
+                            PTR(ptr) => match *ptr {
+                                IMM8_SIGNED(offset) => {
+                                    let sp = self.cpu.read_r16(&R16_SP);
+                                    sp.wrapping_add(offset as u16)
+                                }
+                                _ => panic!("(CRITICAL) LD : ILLEGAL STACK POINTER OFFSET {ptr} at {pc:#06X}"),
+                            },
+                            _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
+                        };
+
+                        self.cpu.write_r16(&dst, word);
+                    }
                     // load into memory
                     PTR(ptr) => {
                         let address = match *ptr {
@@ -251,6 +288,21 @@ impl Gameboy {
 
                     self.cpu.offset_program_counter(offset);
                 }
+            }
+            Operation::CALL { proc } => {
+                let address = match proc {
+                    IMM16(imm16) => imm16,
+                    _ => {
+                        panic!("(CRITICAL) CALL : ILLEGAL PROCEDURE ADDRESS {proc} at {pc:#06X}")
+                    }
+                };
+
+                // push the return address to the stack
+                let current_pc = self.cpu.read_program_counter();
+                self.push_word(current_pc);
+
+                // jump to the procedure
+                self.cpu.write_program_counter(address);
             }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
@@ -436,5 +488,23 @@ impl Gameboy {
             };
         }
           */
+    }
+
+    // utilities common to multiple opcodes
+
+    fn push_byte(&mut self, byte: u8) {
+        // decrement stack pointer
+        self.cpu.offset_stack_pointer(-1);
+
+        // write byte
+        self.memory.write_byte(self.cpu.read_stack_pointer(), byte);
+    }
+
+    fn push_word(&mut self, word: u16) {
+        // decrement stack pointer
+        self.cpu.offset_stack_pointer(-2);
+
+        // write word
+        self.memory.write_word(self.cpu.read_stack_pointer(), word);
     }
 }

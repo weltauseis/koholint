@@ -1,7 +1,6 @@
 use core::fmt;
-use std::{fmt::format, path::Display};
 
-use crate::{gameboy::Gameboy, memory::Memory};
+use crate::gameboy::Gameboy;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
@@ -32,6 +31,7 @@ pub enum Operation {
     LD { dst: Operand, src: Operand },
     JP { addr: Operand },
     JR_CC { cc: Operand, offset_oprd: Operand },
+    CALL { proc: Operand },
     DEC { x: Operand },
     INC { x: Operand },
     XOR { y: Operand },
@@ -121,6 +121,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 3,
             };
         }
+        0x1A => {
+            // ld a, (de)
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::R8_A,
+                    src: Operand::PTR(Box::new(Operand::R16_DE)),
+                },
+                size: 1,
+            };
+        }
         0x20 => {
             // jr nz, imm8
             return Instruction {
@@ -172,6 +182,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: Operand::IMM8(console.memory().read_byte(address + 1)),
                 },
                 size: 2,
+            };
+        }
+        0x77 => {
+            // ld (hl), a
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::PTR(Box::new(Operand::R16_HL)),
+                    src: Operand::R8_A,
+                },
+                size: 1,
             };
         }
         0xA8 => {
@@ -231,7 +251,27 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 ),
             }
         }
-
+        0xCD => {
+            // call imm16
+            return Instruction {
+                op: Operation::CALL {
+                    proc: Operand::IMM16(console.memory().read_word(address + 1)),
+                },
+                size: 3,
+            };
+        }
+        0xE0 => {
+            // ld (imm8), a
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::PTR(Box::new(Operand::IMM8(
+                        console.memory().read_byte(address + 1),
+                    ))),
+                    src: Operand::R8_A,
+                },
+                size: 2,
+            };
+        }
         0xE2 => {
             // ld (c), a
             return Instruction {
@@ -294,6 +334,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
             cc,
             offset_oprd: offset,
         } => format!("jr {cc}, {offset}"),
+        Operation::CALL { proc } => format!("call {proc}"),
         Operation::DEC { x } => format!("dec {x}"),
         Operation::INC { x } => format!("inc {x}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),

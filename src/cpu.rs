@@ -38,11 +38,6 @@ impl CPU {
         };
     }
 
-    // accessors
-    pub fn read_stack_pointer(&self) -> u16 {
-        return self.sp;
-    }
-
     // functions to access the registers using an instruction operand
 
     pub fn read_r8(&self, r8: &Operand) -> u8 {
@@ -117,6 +112,8 @@ impl CPU {
         };
     }
 
+    // direct accessors
+
     pub fn read_program_counter(&self) -> u16 {
         return self.pc;
     }
@@ -134,6 +131,22 @@ impl CPU {
             self.pc = self.pc.wrapping_add(offset.abs() as u16);
         } else {
             self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+        }
+    }
+
+    pub fn read_stack_pointer(&self) -> u16 {
+        return self.sp;
+    }
+
+    pub fn write_stack_pointer(&mut self, value: u16) {
+        self.sp = value;
+    }
+
+    pub fn offset_stack_pointer(&mut self, offset: i8) {
+        if offset > 0 {
+            self.sp = self.sp.wrapping_add(offset.abs() as u16);
+        } else {
+            self.sp = self.sp.wrapping_sub(offset.abs() as u16);
         }
     }
 

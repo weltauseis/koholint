@@ -9,6 +9,7 @@ pub struct Memory {
     vram: [u8; 0x2000],     // 8000-9FFF | 8KiB Video Ram
     wram: [u8; 0x4000],     // C000-CFFF | 4 KiB Work RAM
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
+    hram: [u8; 0x7F],       // FF80-FFFE | High Ram
 }
 
 impl Memory {
@@ -19,6 +20,7 @@ impl Memory {
             vram: [0; 0x2000],
             wram: [0; 0x4000],
             switchable_wram: [0; 0x4000],
+            hram: [0; 0x7F],
         };
     }
 
@@ -118,6 +120,7 @@ impl Memory {
                 );
                 self.wram[(address - 0xC000) as usize] = value;
             }
+            // SWITCHABLE WRAM
             0xD000..0xE000 => {
                 trace!(
                     "Wrote byte {:#04X} to switchable WRAM at address {:#06X}",
@@ -127,11 +130,16 @@ impl Memory {
                 self.switchable_wram[(address - 0xD000) as usize] = value;
                 warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
             }
+            // MEMORY IO
             0xFF00..0xFF80 => {
                 warn!(
                     "CALL TO UNIMPLEMENTED IO MEMORY WRITE (ADDRESS {:#06X})",
                     address
                 );
+            }
+            // HRAM
+            0xFF80..0xFFFF => {
+                self.hram[(address - 0xFF80) as usize] = value;
             }
             _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
         }
