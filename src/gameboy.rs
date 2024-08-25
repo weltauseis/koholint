@@ -144,6 +144,25 @@ impl Gameboy {
                 self.cpu.write_h_flag(false);
                 self.cpu.write_c_flag(false);
             }
+            Operation::BIT { bit, src } => {
+                // test bit in register / memory, set the zero flag to complement of bit
+
+                let byte = match src {
+                    // test bit in 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(src),
+                    // test bit in memory
+                    PTR(ptr) => match *ptr {
+                        R16_HL => self.memory.read_byte(self.cpu.read_r16(R16_HL)),
+                        _ => panic!("(CRITICAL) BIT : ILLEGAL POINTER {ptr}"),
+                    },
+                    _ => panic!("(CRITICAL) BIT : ILLEGAL SRC {src}"),
+                };
+
+                // bit instruction flags : Z 0 1 -
+                self.cpu.write_z_flag((byte >> bit) & 1 == 0); // true if bit is 0, false if bit is 1
+                self.cpu.write_n_flag(false);
+                self.cpu.write_h_flag(true);
+            }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
             }
