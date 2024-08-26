@@ -6,7 +6,6 @@ mod cpu;
 mod debugger;
 #[allow(dead_code)]
 mod decoding;
-#[allow(dead_code)]
 mod gameboy;
 #[allow(non_contiguous_range_endpoints)]
 mod memory;

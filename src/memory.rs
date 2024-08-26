@@ -82,14 +82,13 @@ impl Memory {
     // accessors
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
+            // ROM
             0x0000..0x8000 => {
-                let byte = self.rom_bank[address as usize];
-                trace!(
-                    "Read byte {:#X} from ROM bank at address {:#04X}",
-                    byte,
-                    address
-                );
-                return byte;
+                return self.rom_bank[address as usize];
+            }
+            // HRAM
+            0xFF80..0xFFFF => {
+                return self.hram[(address - 0xFF80) as usize];
             }
             _ => panic!("READ_BYTE : INVALID ADDRESS ({:#06X})", address),
         }
@@ -110,7 +109,6 @@ impl Memory {
                 );
                 self.vram[(address - 0x8000) as usize] = value;
             }
-
             // WRAM
             0xC000..0xD000 => {
                 trace!(
@@ -146,24 +144,10 @@ impl Memory {
     }
 
     pub fn read_word(&self, address: u16) -> u16 {
-        match address {
-            0x0000..0x8000 => {
-                let word = u16::from_le_bytes(
-                    self.rom_bank[(address as usize)..((address + 2) as usize)]
-                        .try_into()
-                        .unwrap(),
-                );
-
-                trace!(
-                    "Read word {:#X} from ROM bank at address {:#X}",
-                    word,
-                    address
-                );
-
-                return word;
-            }
-            _ => panic!("INVALID ADDRESS"),
-        }
+        let mut bytes: [u8; 2] = [0; 2];
+        bytes[0] = self.read_byte(address);
+        bytes[1] = self.read_byte(address + 1);
+        return u16::from_le_bytes(bytes);
     }
 
     pub fn write_word(&mut self, address: u16, value: u16) {

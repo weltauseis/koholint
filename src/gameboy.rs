@@ -425,7 +425,6 @@ impl Gameboy {
                     _ => panic!("(CRITICAL) RLC : ILLEGAL OPERAND {x} at {pc:#06X}"),
                 }
             }
-
             Operation::RRC { x } => {
                 match x {
                     // rotate 8-bit register
@@ -534,7 +533,6 @@ impl Gameboy {
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(false);
             }
-
             Operation::RRCA {} => {
                 // rotate 8-bit register
 
@@ -590,47 +588,19 @@ impl Gameboy {
 
                 self.push_word(to_push);
             }
+
+            Operation::POP { reg } => {
+                match reg {
+                    R16_BC | R16_DE | R16_HL | R16_AF => {
+                        let word = self.pop_word();
+                        self.cpu.write_r16(&reg, word);
+                    }
+                    _ => panic!("(CRITICAL) POP : ILLEGAL OPERAND {reg} at {pc:#06X}"),
+                };
+            }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);
-            }
-            Operation::XOR_A_R8 { r8 } => {
-                let a = self.cpu.get_r8(R8_A);
-                let reg = self.cpu.get_r8(r8);
-                self.cpu.set_r8(R8_A, a ^ reg);
-
-                self.cpu.increment_program_counter(instr.size);
-
-                self.cpu.set_z_flag(self.cpu.get_r8(R8_A) == 0);
-            }
-            Operation::LD_R8_IMM8 { r8, imm8 } => {
-                self.cpu.set_r8(r8, imm8);
-
-                self.cpu.increment_program_counter(instr.size);
-            }
-            Operation::LD_PTR_R8 { ptr, r8 } => {
-                let address = self.cpu.get_r16(ptr);
-
-                self.memory.write_byte(address, self.cpu.get_r8(r8));
-
-                if matches!(ptr, R16_HLD) {
-                    let hl = self.cpu.get_r16(R16_HL);
-                    self.cpu.set_r16(R16_HL, hl.wrapping_sub(1));
-                }
-
-                self.cpu.increment_program_counter(instr.size);
-            }
-            Operation::DEC { x: r8 } => {
-                let reg = self.cpu.get_r8(r8);
-                let result = reg.wrapping_sub(1);
-
-                self.cpu.set_z_flag(result == 0);
-                self.cpu.set_n_flag(true);
-                self.cpu.set_h_flag(reg == 0);
-
-                self.cpu.set_r8(r8, result);
-
-                self.cpu.increment_program_counter(instr.size);
-            } */
+            }*/
             _ => panic!(
                 "EXECUTION : UNHANDLED INSTRUCTION ({instr}) at PC {:#06X}",
                 self.cpu.read_program_counter()
@@ -778,13 +748,13 @@ impl Gameboy {
 
     // utilities common to multiple opcodes
 
-    fn push_byte(&mut self, byte: u8) {
+    /* fn push_byte(&mut self, byte: u8) {
         // decrement stack pointer
         self.cpu.offset_stack_pointer(-1);
 
         // write byte
         self.memory.write_byte(self.cpu.read_stack_pointer(), byte);
-    }
+    } */
 
     fn push_word(&mut self, word: u16) {
         // decrement stack pointer
@@ -792,5 +762,25 @@ impl Gameboy {
 
         // write word
         self.memory.write_word(self.cpu.read_stack_pointer(), word);
+    }
+
+    /* fn pop_byte(&mut self) -> u8 {
+        // read byte
+        let byte = self.memory.read_byte(self.cpu.read_stack_pointer());
+
+        // decrement stack pointer
+        self.cpu.offset_stack_pointer(1);
+
+        return byte;
+    } */
+
+    fn pop_word(&mut self) -> u16 {
+        // read word
+        let word = self.memory.read_word(self.cpu.read_stack_pointer());
+
+        // decrement stack pointer
+        self.cpu.offset_stack_pointer(2);
+
+        return word;
     }
 }

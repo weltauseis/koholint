@@ -34,6 +34,7 @@ pub enum Operation {
     JR_CC { cc: Operand, offset_oprd: Operand },
     CALL { proc: Operand },
     PUSH { reg: Operand },
+    POP { reg: Operand },
     DEC { x: Operand },
     INC { x: Operand },
     XOR { y: Operand },
@@ -249,6 +250,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 1,
             };
         }
+        0xC1 => {
+            // pop bc
+            return Instruction {
+                op: Operation::POP {
+                    reg: Operand::R16_BC,
+                },
+                size: 1,
+            };
+        }
         0xC3 => {
             // jp imm16
             return Instruction {
@@ -380,6 +390,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         } => format!("jr {cc}, {offset}"),
         Operation::CALL { proc } => format!("call {proc}"),
         Operation::PUSH { reg: word } => format!("push {word}"),
+        Operation::POP { reg: word } => format!("pop {word}"),
         Operation::DEC { x } => format!("dec {x}"),
         Operation::INC { x } => format!("inc {x}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),
