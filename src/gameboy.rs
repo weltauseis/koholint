@@ -83,6 +83,8 @@ impl Gameboy {
                                     let address = self.cpu.read_r16(&ptr);
                                     self.memory.read_byte(address)
                                 }
+                                // address from imm8 : IO memory
+                                IMM8(imm8) => self.memory.read_byte(0xFF00 + imm8 as u16),
                                 _ => panic!("(CRITICAL) LD : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                             },
                             _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
@@ -555,6 +557,14 @@ impl Gameboy {
                 self.cpu.write_z_flag(false);
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(false);
+            }
+            Operation::JR { offset_oprd } => {
+                let offset = match offset_oprd {
+                    IMM8_SIGNED(offset) => offset,
+                    _ => panic!("(CRITICAL) JR : ILLEGAL OFFSET {offset_oprd} at {pc:#06X}"),
+                };
+
+                self.cpu.offset_program_counter(offset);
             }
             Operation::JR_CC { cc, offset_oprd } => {
                 let should_jump = self.cpu.get_cc(&cc);

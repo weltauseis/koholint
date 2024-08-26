@@ -1,4 +1,4 @@
-use log::{info, trace, warn};
+use log::{error, info, trace, warn};
 
 // https://gbdev.io/pandocs/Memory_Map.html
 // FIXME : add support for MBC and switchable ROM banks
@@ -89,6 +89,15 @@ impl Memory {
             // ROM
             0x0000..0x8000 => {
                 return self.rom_bank[address as usize];
+            }
+            // MEMORY IO
+            0xFF00..0xFF80 => {
+                error!(
+                    "CALL TO UNIMPLEMENTED IO MEMORY READ (ADDRESS {:#06X})",
+                    address
+                );
+
+                return 0;
             }
             // HRAM
             0xFF80..0xFFFF => {

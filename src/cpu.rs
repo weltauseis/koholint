@@ -149,15 +149,15 @@ impl CPU {
     }
 
     pub fn read_bc_register(&self) -> u16 {
-        return u16::from_le_bytes([self.b, self.c]);
+        return u16::from_be_bytes([self.b, self.c]);
     }
 
     pub fn read_de_register(&self) -> u16 {
-        return u16::from_le_bytes([self.d, self.e]);
+        return u16::from_be_bytes([self.d, self.e]);
     }
 
     pub fn read_hl_register(&self) -> u16 {
-        return u16::from_le_bytes([self.h, self.l]);
+        return u16::from_be_bytes([self.h, self.l]);
     }
 
     pub fn read_program_counter(&self) -> u16 {
@@ -252,6 +252,7 @@ impl CPU {
     pub fn get_cc(&self, cc: &Operand) -> bool {
         match cc {
             Operand::CC_NZ => !self.read_z_flag(),
+            Operand::CC_Z => self.read_z_flag(),
             _ => panic!("GET_CC : INVALID CONDITION ({:?})", cc),
         }
     }
