@@ -1,10 +1,10 @@
-use log::{error, info, trace, warn};
+use log::{info, trace, warn};
 
 // https://gbdev.io/pandocs/Memory_Map.html
-// FIXME : add support for MBC and switchable ROM banks
-// FIXME : add support for switchable WRAM in gameboy color mode
-// FIXME : add support for switchable VRAM in gameboy color mode
-// FIXME : add support for switchable external RAM
+// TODO : add support for MBC and switchable ROM banks
+// TODO : add support for switchable WRAM in gameboy color mode
+// TODO : add support for switchable VRAM in gameboy color mode
+// TODO : add support for switchable external RAM
 
 pub struct Memory {
     boot_rom: [u8; 0x100],         // 0000-00FF | Boot ROM (mapped only during boot)
@@ -99,6 +99,10 @@ impl Memory {
         }
 
         self.rom_bank[..rom.len()].copy_from_slice(&rom);
+
+        //FIXME : until display is implemented, pretend we are always in V-Blank
+        // value at 0xFF44 is used to determine vertical-blank period
+        self.io[0x44] = 144;
     }
 
     // accessors
@@ -116,12 +120,12 @@ impl Memory {
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
-                error!(
+                warn!(
                     "CALL TO UNIMPLEMENTED IO MEMORY READ (ADDRESS {:#06X})",
                     address
                 );
 
-                return 0;
+                return self.io[(address - 0xFF00) as usize];
             }
             // HRAM
             0xFF80..0xFFFF => {
