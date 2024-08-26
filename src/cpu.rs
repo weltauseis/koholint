@@ -84,7 +84,9 @@ impl CPU {
         return match r16 {
             Operand::R16_BC => u16::from_le_bytes([self.b, self.c]),
             Operand::R16_DE => u16::from_le_bytes([self.d, self.e]),
-            Operand::R16_HL | Operand::R16_HLD => u16::from_le_bytes([self.h, self.l]),
+            Operand::R16_HL | Operand::R16_HLD | Operand::R16_HLI => {
+                u16::from_le_bytes([self.h, self.l])
+            }
             Operand::R16_SP => self.sp,
             _ => panic!("GET_R16 : INVALID REGISTER ({:?})", r16),
         };

@@ -183,6 +183,8 @@ impl Gameboy {
                     let reg = self.cpu.read_r16(&x);
                     let result = reg.wrapping_add(1);
                     self.cpu.write_r16(&x, result);
+
+                    // no flags for 16-bit increment
                 }
                 // memory at address in hl
                 PTR(ptr) => match *ptr {
@@ -580,6 +582,14 @@ impl Gameboy {
                 // jump to the procedure
                 self.cpu.write_program_counter(address);
             }
+
+            Operation::RET => {
+                let return_address = self.pop_word();
+
+                // jump to where the procedure was called
+                self.cpu.write_program_counter(return_address);
+            }
+
             Operation::PUSH { reg } => {
                 let to_push = match reg {
                     R16_BC | R16_DE | R16_HL | R16_AF => self.cpu.read_r16(&reg),
@@ -597,6 +607,27 @@ impl Gameboy {
                     }
                     _ => panic!("(CRITICAL) POP : ILLEGAL OPERAND {reg} at {pc:#06X}"),
                 };
+            }
+
+            Operation::CP { y } => {
+                // compare register a with another value
+                let a = self.cpu.read_r8(&R8_A);
+                let other = match y {
+                    // second operand can be another 8-bit register, imm8 or pointer in hl
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                    IMM8(imm8) => imm8,
+                    PTR(ptr) => match *ptr {
+                        R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
+                        _ => panic!("(CRITICAL) CP : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) CP : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                };
+
+                // cp flags : Z 1 H C
+                self.cpu.write_z_flag(a == other);
+                self.cpu.write_n_flag(true);
+                self.cpu.write_h_flag((a & 0xF) < (other & 0xF));
+                self.cpu.write_c_flag(a < other);
             }
             /* Operation::JP_IMM16 { imm16 } => {
                 self.cpu.set_program_counter(imm16);

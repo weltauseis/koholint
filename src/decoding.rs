@@ -33,6 +33,7 @@ pub enum Operation {
     JP { addr: Operand },
     JR_CC { cc: Operand, offset_oprd: Operand },
     CALL { proc: Operand },
+    RET,
     PUSH { reg: Operand },
     POP { reg: Operand },
     DEC { x: Operand },
@@ -47,6 +48,7 @@ pub enum Operation {
     RRA,
     RLCA,
     RRCA,
+    CP { y: Operand },
 }
 
 pub struct Instruction {
@@ -79,6 +81,20 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: Operand::IMM16(console.memory().read_word(address + 1)),
                 },
                 size: 3,
+            };
+        }
+        0x03 => {
+            // inc bc
+            return Instruction {
+                op: Operation::INC { x: Operand::R16_BC },
+                size: 1,
+            };
+        }
+        0x04 => {
+            // inc b
+            return Instruction {
+                op: Operation::INC { x: Operand::R8_B },
+                size: 1,
             };
         }
         0x05 => {
@@ -132,6 +148,13 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 3,
             };
         }
+        0x13 => {
+            // inc de
+            return Instruction {
+                op: Operation::INC { x: Operand::R16_DE },
+                size: 1,
+            };
+        }
         0x17 => {
             // rla
             return Instruction {
@@ -172,6 +195,23 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 3,
             };
         }
+        0x22 => {
+            // ld (hl+), a
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::PTR(Box::new(Operand::R16_HLI)),
+                    src: Operand::R8_A,
+                },
+                size: 1,
+            };
+        }
+        0x23 => {
+            // inc hl
+            return Instruction {
+                op: Operation::INC { x: Operand::R16_HL },
+                size: 1,
+            };
+        }
         0x31 => {
             // ld sp, imm16
             return Instruction {
@@ -189,6 +229,13 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     dst: Operand::PTR(Box::new(Operand::R16_HLD)),
                     src: Operand::R8_A,
                 },
+                size: 1,
+            };
+        }
+        0x33 => {
+            // inc sp
+            return Instruction {
+                op: Operation::INC { x: Operand::R16_SP },
                 size: 1,
             };
         }
@@ -222,26 +269,66 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 1,
             };
         }
+        0x7B => {
+            // ld a, e
+            return Instruction {
+                op: Operation::LD {
+                    dst: Operand::R8_A,
+                    src: Operand::R8_E,
+                },
+                size: 1,
+            };
+        }
         0xA8 => {
             // xor a, b
+            return Instruction {
+                op: Operation::XOR { y: Operand::R8_B },
+                size: 1,
+            };
         }
         0xA9 => {
             // xor a, c
+            return Instruction {
+                op: Operation::XOR { y: Operand::R8_C },
+                size: 1,
+            };
         }
         0xAA => {
             // xor a, d
+            return Instruction {
+                op: Operation::XOR { y: Operand::R8_D },
+                size: 1,
+            };
         }
         0xAB => {
             // xor a, e
+            return Instruction {
+                op: Operation::XOR { y: Operand::R8_E },
+                size: 1,
+            };
         }
         0xAC => {
             // xor a, h
+            return Instruction {
+                op: Operation::XOR { y: Operand::R8_H },
+                size: 1,
+            };
         }
         0xAD => {
             // xor a, l
+            return Instruction {
+                op: Operation::XOR { y: Operand::R8_L },
+                size: 1,
+            };
         }
         0xAE => {
             // xor a, (hl)
+            return Instruction {
+                op: Operation::XOR {
+                    y: Operand::PTR(Box::new(Operand::R16_HL)),
+                },
+                size: 1,
+            };
         }
         0xAF => {
             // xor a, a
@@ -274,6 +361,13 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 op: Operation::PUSH {
                     reg: Operand::R16_BC,
                 },
+                size: 1,
+            };
+        }
+        0xC9 => {
+            // ret
+            return Instruction {
+                op: Operation::RET,
                 size: 1,
             };
         }
@@ -335,18 +429,21 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 1,
             };
         }
+        0xFE => {
+            // cp imm8
+            return Instruction {
+                op: Operation::CP {
+                    y: Operand::IMM8(console.memory().read_byte(address + 1)),
+                },
+                size: 2,
+            };
+        }
 
         _ => panic!(
             "DECODING : UNHANDLED INSTRUCTION ({:#04X}) at PC {:#06X}",
             instr, address
         ),
     }
-
-    todo!(
-        "DECODING : UNHANDLED INSTRUCTION ({:#04X}) at PC {:#06X}",
-        instr,
-        address
-    )
 }
 
 fn operand_to_string(operand: &Operand) -> String {
@@ -389,6 +486,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
             offset_oprd: offset,
         } => format!("jr {cc}, {offset}"),
         Operation::CALL { proc } => format!("call {proc}"),
+        Operation::RET => String::from("ret"),
         Operation::PUSH { reg: word } => format!("push {word}"),
         Operation::POP { reg: word } => format!("pop {word}"),
         Operation::DEC { x } => format!("dec {x}"),
@@ -403,6 +501,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RRA => String::from("rra"),
         Operation::RLCA => String::from("rlca"),
         Operation::RRCA => String::from("rrca"),
+        Operation::CP { y } => format!("cp {y}"),
     }
 }
 

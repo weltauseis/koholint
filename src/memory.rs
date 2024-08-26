@@ -3,10 +3,13 @@ use log::{info, trace, warn};
 // https://gbdev.io/pandocs/Memory_Map.html
 // FIXME : add support for MBC and switchable ROM banks
 // FIXME : add support for switchable WRAM in gameboy color mode
+// FIXME : add support for switchable VRAM in gameboy color mode
+// FIXME : add support for switchable external RAM
 
 pub struct Memory {
     rom_bank: [u8; 0x8000], // 0000-7FFF | 32 KiB ROM bank, no MBC support for now
     vram: [u8; 0x2000],     // 8000-9FFF | 8KiB Video Ram
+    ext_ram: [u8; 0x2000],  // A000-BFFF | 8 KiB External RAM (cartridge)
     wram: [u8; 0x4000],     // C000-CFFF | 4 KiB Work RAM
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
     hram: [u8; 0x7F],       // FF80-FFFE | High Ram
@@ -18,6 +21,7 @@ impl Memory {
         return Memory {
             rom_bank: [0; 0x8000],
             vram: [0; 0x2000],
+            ext_ram: [0; 0x2000],
             wram: [0; 0x4000],
             switchable_wram: [0; 0x4000],
             hram: [0; 0x7F],
@@ -109,6 +113,15 @@ impl Memory {
                 );
                 self.vram[(address - 0x8000) as usize] = value;
             }
+            // EXTERNAL RAM
+            0xA000..0xC000 => {
+                trace!(
+                    "Wrote byte {:#04X} to EXTERNAL RAM at address {:#06X}",
+                    value,
+                    address
+                );
+                self.ext_ram[(address - 0xA000) as usize] = value;
+            }
             // WRAM
             0xC000..0xD000 => {
                 trace!(
@@ -126,7 +139,7 @@ impl Memory {
                     address
                 );
                 self.switchable_wram[(address - 0xD000) as usize] = value;
-                warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
+                //warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
