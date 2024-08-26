@@ -124,6 +124,10 @@ impl CPU {
         return self.a;
     }
 
+    pub fn write_a_register(&mut self, value: u8) {
+        self.a = value;
+    }
+
     pub fn read_b_register(&self) -> u8 {
         return self.b;
     }

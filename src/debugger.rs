@@ -1,5 +1,6 @@
-use core::time;
-use std::{arch::x86_64, io::Write};
+use std::io::Write;
+
+use log::error;
 
 use crate::{decoding::decode_instruction, gameboy::Gameboy};
 
@@ -25,8 +26,8 @@ pub fn debug_console(mut console: Gameboy) {
         let subcommands: Vec<&str> = input.trim().split_whitespace().collect();
         match subcommands.get(0) {
             None => {
-                // continue if empty command
-                continue;
+                // step program if empty command
+                console.step();
             }
             Some(cmd) => {
                 match *cmd {
@@ -169,6 +170,8 @@ pub fn debug_console(mut console: Gameboy) {
                         let mut ppm_string = format!("P3\n{} {}\n255\n", WIDTH * 8, HEIGHT * 8);
                         // https://gbdev.io/pandocs/Tile_Data.html#vram-tile-data
 
+                        // this whole thing is pretty convoluted but i don't think there's a better way,
+                        // as the memory layout of the gameboy tiles is very different from that of "normal" images
                         for i in 0..HEIGHT {
                             for y in 0..8 {
                                 for j in 0..WIDTH {
@@ -192,7 +195,7 @@ pub fn debug_console(mut console: Gameboy) {
                                             2 => "198 183 190\n",
                                             3 => "250 251 246\n",
                                             _ => {
-                                                println!("weird pixel : {pixel}");
+                                                error!("VERY weird value in VRAM dump");
                                                 "255 0 0\n"
                                             }
                                         });

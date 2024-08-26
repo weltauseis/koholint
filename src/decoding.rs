@@ -40,6 +40,8 @@ pub enum Operation {
     POP { reg: Operand },
     DEC { x: Operand },
     INC { x: Operand },
+    ADD_8 { y: Operand },
+    SUB { y: Operand },
     XOR { y: Operand },
     BIT { bit: u8, src: Operand },
     RL { x: Operand },
@@ -66,21 +68,23 @@ pub fn decode_next_instruction(console: &Gameboy) -> Instruction {
 // https://meganesu.github.io/generate-gb-opcodes/
 // https://gbdev.io/gb-opcodes/optables/ (seems to correct a few mistakes)
 pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
-    let instr = console.memory().read_byte(address);
+    use Operand::*;
+    use Operation::*;
+
+    let instr = console.memory().read_byte(address); // instruction byte
+    let imm8 = console.memory().read_byte(address + 1); // immediate byte, if needed
+    let imm16 = console.memory().read_word(address + 1); // immediate word, if needed
 
     match instr {
         0x00 => {
-            return Instruction {
-                op: Operation::NOP,
-                size: 1,
-            };
+            return Instruction { op: NOP, size: 1 };
         }
         0x01 => {
             // ld bc, imm16
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R16_BC,
-                    src: Operand::IMM16(console.memory().read_word(address + 1)),
+                op: LD {
+                    dst: R16_BC,
+                    src: IMM16(imm16),
                 },
                 size: 3,
             };
@@ -88,30 +92,30 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x03 => {
             // inc bc
             return Instruction {
-                op: Operation::INC { x: Operand::R16_BC },
+                op: INC { x: R16_BC },
                 size: 1,
             };
         }
         0x04 => {
             // inc b
             return Instruction {
-                op: Operation::INC { x: Operand::R8_B },
+                op: INC { x: R8_B },
                 size: 1,
             };
         }
         0x05 => {
             // dec b
             return Instruction {
-                op: Operation::DEC { x: Operand::R8_B },
+                op: DEC { x: R8_B },
                 size: 1,
             };
         }
         0x06 => {
             // ld b, imm8
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_B,
-                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
+                op: LD {
+                    dst: R8_B,
+                    src: IMM8(imm8),
                 },
                 size: 2,
             };
@@ -119,23 +123,23 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x0C => {
             // inc c
             return Instruction {
-                op: Operation::INC { x: Operand::R8_C },
+                op: INC { x: R8_C },
                 size: 1,
             };
         }
         0x0D => {
             // dec c
             return Instruction {
-                op: Operation::DEC { x: Operand::R8_C },
+                op: DEC { x: R8_C },
                 size: 1,
             };
         }
         0x0E => {
             // ld c, imm8
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_C,
-                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
+                op: LD {
+                    dst: R8_C,
+                    src: IMM8(imm8),
                 },
                 size: 2,
             };
@@ -143,9 +147,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x11 => {
             // ld de, imm16
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R16_DE,
-                    src: Operand::IMM16(console.memory().read_word(address + 1)),
+                op: LD {
+                    dst: R16_DE,
+                    src: IMM16(imm16),
                 },
                 size: 3,
             };
@@ -153,22 +157,36 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x13 => {
             // inc de
             return Instruction {
-                op: Operation::INC { x: Operand::R16_DE },
+                op: INC { x: R16_DE },
                 size: 1,
+            };
+        }
+        0x15 => {
+            // dec d
+            return Instruction {
+                op: DEC { x: R8_D },
+                size: 1,
+            };
+        }
+        0x16 => {
+            // ld d, imm8
+            return Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: IMM8(imm8),
+                },
+                size: 2,
             };
         }
         0x17 => {
             // rla
-            return Instruction {
-                op: Operation::RLA,
-                size: 1,
-            };
+            return Instruction { op: RLA, size: 1 };
         }
         0x18 => {
             // jr imm8
             return Instruction {
-                op: Operation::JR {
-                    offset_oprd: Operand::IMM8_SIGNED(i8::from_le_bytes([console
+                op: JR {
+                    offset_oprd: IMM8_SIGNED(i8::from_le_bytes([console
                         .memory()
                         .read_byte(address + 1)])),
                 },
@@ -178,19 +196,26 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x1A => {
             // ld a, (de)
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_A,
-                    src: Operand::PTR(Box::new(Operand::R16_DE)),
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(R16_DE)),
                 },
+                size: 1,
+            };
+        }
+        0x1D => {
+            // dec e
+            return Instruction {
+                op: DEC { x: R8_E },
                 size: 1,
             };
         }
         0x1E => {
             // ld e, imm8
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_E,
-                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
+                op: LD {
+                    dst: R8_E,
+                    src: IMM8(imm8),
                 },
                 size: 2,
             };
@@ -198,10 +223,10 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x20 => {
             // jr nz, imm8
             return Instruction {
-                op: Operation::JR_CC {
-                    cc: Operand::CC_NZ,
+                op: JR_CC {
+                    cc: CC_NZ,
                     // the relative jump offset is signed
-                    offset_oprd: Operand::IMM8_SIGNED(i8::from_le_bytes([console
+                    offset_oprd: IMM8_SIGNED(i8::from_le_bytes([console
                         .memory()
                         .read_byte(address + 1)])),
                 },
@@ -211,9 +236,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x21 => {
             // ld hl, imm16
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R16_HL,
-                    src: Operand::IMM16(console.memory().read_word(address + 1)),
+                op: LD {
+                    dst: R16_HL,
+                    src: IMM16(imm16),
                 },
                 size: 3,
             };
@@ -221,9 +246,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x22 => {
             // ld (hl+), a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::PTR(Box::new(Operand::R16_HLI)),
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: PTR(Box::new(R16_HLI)),
+                    src: R8_A,
                 },
                 size: 1,
             };
@@ -231,16 +256,23 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x23 => {
             // inc hl
             return Instruction {
-                op: Operation::INC { x: Operand::R16_HL },
+                op: INC { x: R16_HL },
+                size: 1,
+            };
+        }
+        0x24 => {
+            // inc h
+            return Instruction {
+                op: INC { x: R8_H },
                 size: 1,
             };
         }
         0x28 => {
             // jr z, imm8
             return Instruction {
-                op: Operation::JR_CC {
-                    cc: Operand::CC_Z,
-                    offset_oprd: Operand::IMM8_SIGNED(i8::from_le_bytes([console
+                op: JR_CC {
+                    cc: CC_Z,
+                    offset_oprd: IMM8_SIGNED(i8::from_le_bytes([console
                         .memory()
                         .read_byte(address + 1)])),
                 },
@@ -250,9 +282,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x2E => {
             // ld l, imm8
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_L,
-                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
+                op: LD {
+                    dst: R8_L,
+                    src: IMM8(imm8),
                 },
                 size: 2,
             };
@@ -260,9 +292,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x31 => {
             // ld sp, imm16
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R16_SP,
-                    src: Operand::IMM16(console.memory().read_word(address + 1)),
+                op: LD {
+                    dst: R16_SP,
+                    src: IMM16(imm16),
                 },
                 size: 3,
             };
@@ -270,9 +302,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x32 => {
             // ld (hl-), a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::PTR(Box::new(Operand::R16_HLD)),
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: PTR(Box::new(R16_HLD)),
+                    src: R8_A,
                 },
                 size: 1,
             };
@@ -280,23 +312,23 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x33 => {
             // inc sp
             return Instruction {
-                op: Operation::INC { x: Operand::R16_SP },
+                op: INC { x: R16_SP },
                 size: 1,
             };
         }
         0x3D => {
             // dec a
             return Instruction {
-                op: Operation::DEC { x: Operand::R8_A },
+                op: DEC { x: R8_A },
                 size: 1,
             };
         }
         0x3E => {
             // ld a, imm8
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_A,
-                    src: Operand::IMM8(console.memory().read_byte(address + 1)),
+                op: LD {
+                    dst: R8_A,
+                    src: IMM8(imm8),
                 },
                 size: 2,
             };
@@ -304,9 +336,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x4F => {
             // ld c, a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_C,
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: R8_C,
+                    src: R8_A,
                 },
                 size: 1,
             };
@@ -314,9 +346,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x57 => {
             // ld d, a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_D,
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: R8_D,
+                    src: R8_A,
                 },
                 size: 1,
             };
@@ -324,9 +356,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x67 => {
             // ld h, a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_H,
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: R8_H,
+                    src: R8_A,
                 },
                 size: 1,
             };
@@ -334,9 +366,19 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x77 => {
             // ld (hl), a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::PTR(Box::new(Operand::R16_HL)),
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_A,
+                },
+                size: 1,
+            };
+        }
+        0x78 => {
+            // ld a, b
+            return Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: R8_B,
                 },
                 size: 1,
             };
@@ -344,60 +386,96 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0x7B => {
             // ld a, e
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_A,
-                    src: Operand::R8_E,
+                op: LD {
+                    dst: R8_A,
+                    src: R8_E,
                 },
+                size: 1,
+            };
+        }
+        0x7C => {
+            // ld a, h
+            return Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: R8_H,
+                },
+                size: 1,
+            };
+        }
+        0x7D => {
+            // ld a, l
+            return Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: R8_L,
+                },
+                size: 1,
+            };
+        }
+        0x86 => {
+            // add a, (hl)
+            return Instruction {
+                op: ADD_8 {
+                    y: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+            };
+        }
+        0x90 => {
+            // sub a, b
+            return Instruction {
+                op: SUB { y: R8_B },
                 size: 1,
             };
         }
         0xA8 => {
             // xor a, b
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_B },
+                op: XOR { y: R8_B },
                 size: 1,
             };
         }
         0xA9 => {
             // xor a, c
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_C },
+                op: XOR { y: R8_C },
                 size: 1,
             };
         }
         0xAA => {
             // xor a, d
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_D },
+                op: XOR { y: R8_D },
                 size: 1,
             };
         }
         0xAB => {
             // xor a, e
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_E },
+                op: XOR { y: R8_E },
                 size: 1,
             };
         }
         0xAC => {
             // xor a, h
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_H },
+                op: XOR { y: R8_H },
                 size: 1,
             };
         }
         0xAD => {
             // xor a, l
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_L },
+                op: XOR { y: R8_L },
                 size: 1,
             };
         }
         0xAE => {
             // xor a, (hl)
             return Instruction {
-                op: Operation::XOR {
-                    y: Operand::PTR(Box::new(Operand::R16_HL)),
+                op: XOR {
+                    y: PTR(Box::new(R16_HL)),
                 },
                 size: 1,
             };
@@ -405,88 +483,80 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xAF => {
             // xor a, a
             return Instruction {
-                op: Operation::XOR { y: Operand::R8_A },
+                op: XOR { y: R8_A },
+                size: 1,
+            };
+        }
+        0xBE => {
+            // cp a, (hl)
+            return Instruction {
+                op: CP {
+                    y: PTR(Box::new(R16_HL)),
+                },
                 size: 1,
             };
         }
         0xC1 => {
             // pop bc
             return Instruction {
-                op: Operation::POP {
-                    reg: Operand::R16_BC,
-                },
+                op: POP { reg: R16_BC },
                 size: 1,
             };
         }
         0xC3 => {
             // jp imm16
             return Instruction {
-                op: Operation::JP {
-                    addr: Operand::IMM16(console.memory().read_word(address + 1)),
-                },
+                op: JP { addr: IMM16(imm16) },
                 size: 3,
             };
         }
         0xC5 => {
             // push bc
             return Instruction {
-                op: Operation::PUSH {
-                    reg: Operand::R16_BC,
-                },
+                op: PUSH { reg: R16_BC },
                 size: 1,
             };
         }
         0xC9 => {
             // ret
-            return Instruction {
-                op: Operation::RET,
-                size: 1,
-            };
+            return Instruction { op: RET, size: 1 };
         }
         0xCB => {
             //prefixed bit manipulation instructions
-            let other_byte = console.memory().read_byte(address + 1);
-            match other_byte {
+            match imm8 {
                 0x11 => {
                     // rl c
                     return Instruction {
-                        op: Operation::RL { x: Operand::R8_C },
+                        op: RL { x: R8_C },
                         size: 2,
                     };
                 }
                 0x7C => {
                     // bit 7, h
                     return Instruction {
-                        op: Operation::BIT {
-                            bit: 7,
-                            src: Operand::R8_H,
-                        },
+                        op: BIT { bit: 7, src: R8_H },
                         size: 2,
                     };
                 }
                 _ => panic!(
                     "DECODING : UNHANDLED INSTRUCTION (0xCB{:02X}) at PC {:#06X}",
-                    other_byte, address
+                    imm8, address
                 ),
             }
         }
         0xCD => {
             // call imm16
             return Instruction {
-                op: Operation::CALL {
-                    proc: Operand::IMM16(console.memory().read_word(address + 1)),
-                },
+                op: CALL { proc: IMM16(imm16) },
                 size: 3,
             };
         }
         0xE0 => {
             // ld (imm8), a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::PTR(Box::new(Operand::IMM8(
-                        console.memory().read_byte(address + 1),
-                    ))),
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: PTR(Box::new(IMM8(imm8))),
+                    src: R8_A,
                 },
                 size: 2,
             };
@@ -494,9 +564,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xE2 => {
             // ld (c), a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::PTR(Box::new(Operand::R8_C)),
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: PTR(Box::new(R8_C)),
+                    src: R8_A,
                 },
                 size: 1,
             };
@@ -504,11 +574,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xEA => {
             // ld (imm16), a
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::PTR(Box::new(Operand::IMM16(
-                        console.memory().read_word(address + 1),
-                    ))),
-                    src: Operand::R8_A,
+                op: LD {
+                    dst: PTR(Box::new(IMM16(imm16))),
+                    src: R8_A,
                 },
                 size: 3,
             };
@@ -516,11 +584,9 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xF0 => {
             // ld a, (imm8)
             return Instruction {
-                op: Operation::LD {
-                    dst: Operand::R8_A,
-                    src: Operand::PTR(Box::new(Operand::IMM8(
-                        console.memory().read_byte(address + 1),
-                    ))),
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(IMM8(imm8))),
                 },
                 size: 2,
             };
@@ -528,9 +594,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
         0xFE => {
             // cp imm8
             return Instruction {
-                op: Operation::CP {
-                    y: Operand::IMM8(console.memory().read_byte(address + 1)),
-                },
+                op: CP { y: IMM8(imm8) },
                 size: 2,
             };
         }
@@ -591,6 +655,8 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::POP { reg: word } => format!("pop {word}"),
         Operation::DEC { x } => format!("dec {x}"),
         Operation::INC { x } => format!("inc {x}"),
+        Operation::ADD_8 { y } => format!("add a, {y}"),
+        Operation::SUB { y } => format!("sub a, {y}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
         Operation::RL { x } => format!("rl {x}"),

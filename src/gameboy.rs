@@ -242,6 +242,62 @@ impl Gameboy {
 
                 _ => panic!("(CRITICAL) DEC : ILLEGAL OPERAND {x} at {pc:#06X}"),
             },
+            Operation::ADD_8 { y } => {
+                // add does a + y and stores the result in a
+                let a = self.cpu.read_a_register();
+                let value = match y {
+                    // subtract 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                    // subtract imm8
+                    IMM8(imm8) => imm8,
+                    // subtract from memory with pointer in hl
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let hl = self.cpu.read_r16(&ptr);
+                            self.memory.read_byte(hl)
+                        }
+                        _ => panic!("(CRITICAL) ADD : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) ADD : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                };
+
+                let result = a.wrapping_add(value);
+                self.cpu.write_a_register(result);
+
+                // flags : z 0 h c
+                self.cpu.write_z_flag(result == 0);
+                self.cpu.write_n_flag(false);
+                self.cpu.write_h_flag((a & 0xF) + (value & 0xF) > 0xF);
+                self.cpu.write_c_flag(a < value);
+            }
+            Operation::SUB { y } => {
+                // sub does a - y and stores the result in a
+                let a = self.cpu.read_a_register();
+                let value = match y {
+                    // subtract 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                    // subtract imm8
+                    IMM8(imm8) => imm8,
+                    // subtract from memory with pointer in hl
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let hl = self.cpu.read_r16(&ptr);
+                            self.memory.read_byte(hl)
+                        }
+                        _ => panic!("(CRITICAL) SUB : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) SUB : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                };
+
+                let result = a.wrapping_sub(value);
+                self.cpu.write_a_register(result);
+
+                // flags : z 1 h c
+                self.cpu.write_z_flag(result == 0);
+                self.cpu.write_n_flag(true);
+                self.cpu.write_h_flag((a & 0xF) < (value & 0xF));
+                self.cpu.write_c_flag(a < value);
+            }
             Operation::XOR { y } => {
                 // xor is always done with the a register as first operand (x)
                 let a = self.cpu.read_r8(&R8_A);

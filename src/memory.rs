@@ -55,6 +55,10 @@ impl Memory {
     }
 
     pub fn load_rom(&mut self, rom: Vec<u8>) {
+        if rom.len() < 0x0148 {
+            panic!("ROM is too small !");
+        }
+
         // check the cartridge type byte
         let mbc_byte = rom[0x0147];
         info!(
