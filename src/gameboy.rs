@@ -633,6 +633,16 @@ impl Gameboy {
                     self.cpu.offset_program_counter(offset);
                 }
             }
+            Operation::JP { addr } => {
+                // jp instruction only takes either an imm16 or the hl register
+                let address = match addr {
+                    IMM16(imm16) => imm16,
+                    R16_HL => self.cpu.read_hl_register(),
+                    _ => panic!("(CRITICAL) JP : ILLEGAL ADDRESS {addr} at {pc:#06X}"),
+                };
+
+                self.cpu.write_program_counter(address);
+            }
             Operation::CALL { proc } => {
                 let address = match proc {
                     IMM16(imm16) => imm16,
