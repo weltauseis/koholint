@@ -80,12 +80,16 @@ impl CPU {
         };
     }
 
+    // the endianness of the 16-bit registers is confusing
+    // for example, in BC, B is the high byte and C is the low byte (big-endian)
+    // but in the memory, the low byte is stored first (little-endian)
+
     pub fn read_r16(&self, r16: &Operand) -> u16 {
         return match r16 {
-            Operand::R16_BC => u16::from_le_bytes([self.b, self.c]),
-            Operand::R16_DE => u16::from_le_bytes([self.d, self.e]),
+            Operand::R16_BC => u16::from_be_bytes([self.b, self.c]),
+            Operand::R16_DE => u16::from_be_bytes([self.d, self.e]),
             Operand::R16_HL | Operand::R16_HLD | Operand::R16_HLI => {
-                u16::from_le_bytes([self.h, self.l])
+                u16::from_be_bytes([self.h, self.l])
             }
             Operand::R16_SP => self.sp,
             _ => panic!("GET_R16 : INVALID REGISTER ({:?})", r16),
@@ -96,16 +100,16 @@ impl CPU {
         let bytes = value.to_le_bytes();
         match r16 {
             Operand::R16_BC => {
-                self.b = bytes[0];
-                self.c = bytes[1];
+                self.b = bytes[1];
+                self.c = bytes[0];
             }
             Operand::R16_DE => {
-                self.d = bytes[0];
-                self.e = bytes[1];
+                self.d = bytes[1];
+                self.e = bytes[0];
             }
             Operand::R16_HL | Operand::R16_HLD => {
-                self.h = bytes[0];
-                self.l = bytes[1];
+                self.h = bytes[1];
+                self.l = bytes[0];
             }
             Operand::R16_SP => {
                 self.sp = value;
@@ -115,6 +119,46 @@ impl CPU {
     }
 
     // direct accessors
+
+    pub fn read_a_register(&self) -> u8 {
+        return self.a;
+    }
+
+    pub fn read_b_register(&self) -> u8 {
+        return self.b;
+    }
+
+    pub fn read_c_register(&self) -> u8 {
+        return self.c;
+    }
+
+    pub fn read_d_register(&self) -> u8 {
+        return self.d;
+    }
+
+    pub fn read_e_register(&self) -> u8 {
+        return self.e;
+    }
+
+    pub fn read_h_register(&self) -> u8 {
+        return self.h;
+    }
+
+    pub fn read_l_register(&self) -> u8 {
+        return self.l;
+    }
+
+    pub fn read_bc_register(&self) -> u16 {
+        return u16::from_le_bytes([self.b, self.c]);
+    }
+
+    pub fn read_de_register(&self) -> u16 {
+        return u16::from_le_bytes([self.d, self.e]);
+    }
+
+    pub fn read_hl_register(&self) -> u16 {
+        return u16::from_le_bytes([self.h, self.l]);
+    }
 
     pub fn read_program_counter(&self) -> u16 {
         return self.pc;

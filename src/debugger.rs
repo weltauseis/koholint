@@ -33,6 +33,8 @@ pub fn debug_console(mut console: Gameboy) {
                     println!("  help     : display this help message");
                     println!("  exit     : quit the debugger");
                     println!("  list     : print assembly at current program counter");
+                    println!("  print    : print the value of a register");
+                    println!("  flags    : print the value of the flags register");
                     println!("  next     : execute current instruction");
                     println!("  continue : resume execution until next beakpoint");
                     println!("  break    : place a breakpoint at a specific program counter");
@@ -70,6 +72,37 @@ pub fn debug_console(mut console: Gameboy) {
                         pos += instr.size;
                         to_list -= 1;
                     }
+                }
+                "print" | "p" => match subcommands.get(1) {
+                    None => {
+                        println!("Error : Missing register or flag name");
+                        continue;
+                    }
+                    Some(reg_name) => match *reg_name {
+                        "a" => println!("a : {:#04X}", console.cpu().read_a_register()),
+                        "b" => println!("b : {:#04X}", console.cpu().read_b_register()),
+                        "c" => println!("c : {:#04X}", console.cpu().read_c_register()),
+                        "d" => println!("d : {:#04X}", console.cpu().read_d_register()),
+                        "e" => println!("e : {:#04X}", console.cpu().read_e_register()),
+                        "h" => println!("h : {:#04X}", console.cpu().read_h_register()),
+                        "l" => println!("l : {:#04X}", console.cpu().read_l_register()),
+                        "bc" => println!("bc : {:#06X}", console.cpu().read_bc_register()),
+                        "de" => println!("de : {:#06X}", console.cpu().read_de_register()),
+                        "hl" => println!("hl : {:#06X}", console.cpu().read_hl_register()),
+                        "sp" => println!("sp : {:#06X}", console.cpu().read_stack_pointer()),
+                        _ => {
+                            println!("Error : Unknown register or flag ({})", reg_name);
+                        }
+                    },
+                },
+                "flags" | "f" => {
+                    println!(
+                        "{} {} {} {}",
+                        console.cpu().read_z_flag() as u8,
+                        console.cpu().read_n_flag() as u8,
+                        console.cpu().read_h_flag() as u8,
+                        console.cpu().read_c_flag() as u8
+                    );
                 }
                 "next" | "n" => {
                     console.step();
