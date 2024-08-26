@@ -118,6 +118,10 @@ impl Memory {
                     return self.rom_bank[address as usize];
                 }
             }
+            // VRAM
+            0x8000..0xA000 => {
+                return self.vram[(address - 0x8000) as usize];
+            }
             // MEMORY IO
             0xFF00..0xFF80 => {
                 warn!(
