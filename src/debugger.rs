@@ -4,6 +4,11 @@ use log::error;
 
 use crate::{decoding::decode_instruction, gameboy::Gameboy};
 
+pub fn debugger_entry(rom: Vec<u8>) {
+    let console = Gameboy::new(rom);
+    debug_console(console);
+}
+
 pub fn debug_console(mut console: Gameboy) {
     println!("Welcome to my GBC debugger !");
 

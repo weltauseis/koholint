@@ -1,4 +1,7 @@
-use std::error::Error;
+use std::{
+    error::Error,
+    sync::{Arc, Mutex},
+};
 
 use debugger::debug_console;
 use gameboy::Gameboy;

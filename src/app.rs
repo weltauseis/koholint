@@ -1,3 +1,7 @@
+use std::sync::Mutex;
+
+use crate::{debugger::debugger_entry, gameboy::Gameboy};
+
 pub struct EmulatorApp {}
 
 impl EmulatorApp {
@@ -29,6 +33,16 @@ impl eframe::App for EmulatorApp {
                 let is_web = cfg!(target_arch = "wasm32");
                 if !is_web {
                     ui.menu_button("File", |ui| {
+                        if ui.button("Load ROM").clicked() {
+                            let files = rfd::FileDialog::new().pick_file();
+                            if let Some(path) = files {
+                                if let Ok(rom) = std::fs::read(path) {
+                                    std::thread::spawn(move || {
+                                        debugger_entry(rom);
+                                    });
+                                }
+                            }
+                        }
                         if ui.button("Quit").clicked() {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
@@ -40,7 +54,7 @@ impl eframe::App for EmulatorApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            ui.heading("SUPER COOL EMULATOR");
 
             /*  ui.horizontal(|ui| {
                 ui.label("Write something: ");
