@@ -28,6 +28,9 @@ fn main() {
     }
     env_logger::init();
 
+    let rom = std::fs::read(&args[1]).unwrap();
+    let console = Gameboy::new(rom);
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([400.0, 300.0])
@@ -38,7 +41,7 @@ fn main() {
     eframe::run_native(
         "Koholint Gameboy Emulator",
         native_options,
-        Box::new(|cc| Ok(Box::new(app::EmulatorApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(app::EmulatorApp::new(cc, console)))),
     )
     .unwrap();
 }

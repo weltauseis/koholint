@@ -1,23 +1,24 @@
-use std::io::Write;
+use std::{
+    io::Write,
+    sync::{Arc, Mutex},
+};
 
 use log::error;
 
 use crate::{decoding::decode_instruction, gameboy::Gameboy};
 
-pub fn debugger_entry(rom: Vec<u8>) {
-    let console = Gameboy::new(rom);
-    debug_console(console);
-}
-
-pub fn debug_console(mut console: Gameboy) {
+pub fn debug_console(console: Arc<Mutex<Gameboy>>) {
     println!("Welcome to my GBC debugger !");
 
     let mut breakpoints: Vec<u16> = Vec::new();
 
     loop {
         // prompt
-        print!("{:#06X} (dbg)> ", console.cpu().read_program_counter());
-        std::io::stdout().flush().unwrap();
+        {
+            let console = console.lock().unwrap();
+            print!("{:#06X} (dbg)> ", console.cpu().read_program_counter());
+            std::io::stdout().flush().unwrap();
+        }
 
         // get user input
         let mut input = String::new();
@@ -32,6 +33,7 @@ pub fn debug_console(mut console: Gameboy) {
         match subcommands.get(0) {
             None => {
                 // step program if empty command
+                let mut console = console.lock().unwrap();
                 console.step();
             }
             Some(cmd) => {
@@ -55,6 +57,7 @@ pub fn debug_console(mut console: Gameboy) {
                     }
                     "list" | "l" => {
                         // TODO: find a way to show previous instructions
+                        let console = console.lock().unwrap();
 
                         let pc = console.cpu().read_program_counter();
                         let mut to_list = match subcommands.get(1) {
@@ -87,24 +90,30 @@ pub fn debug_console(mut console: Gameboy) {
                             println!("Error : Missing register or flag name");
                             continue;
                         }
-                        Some(reg_name) => match *reg_name {
-                            "a" => println!("a : {:#04X}", console.cpu().read_a_register()),
-                            "b" => println!("b : {:#04X}", console.cpu().read_b_register()),
-                            "c" => println!("c : {:#04X}", console.cpu().read_c_register()),
-                            "d" => println!("d : {:#04X}", console.cpu().read_d_register()),
-                            "e" => println!("e : {:#04X}", console.cpu().read_e_register()),
-                            "h" => println!("h : {:#04X}", console.cpu().read_h_register()),
-                            "l" => println!("l : {:#04X}", console.cpu().read_l_register()),
-                            "bc" => println!("bc : {:#06X}", console.cpu().read_bc_register()),
-                            "de" => println!("de : {:#06X}", console.cpu().read_de_register()),
-                            "hl" => println!("hl : {:#06X}", console.cpu().read_hl_register()),
-                            "sp" => println!("sp : {:#06X}", console.cpu().read_stack_pointer()),
-                            _ => {
-                                println!("Error : Unknown register or flag ({})", reg_name);
+                        Some(reg_name) => {
+                            let console = console.lock().unwrap();
+                            match *reg_name {
+                                "a" => println!("a : {:#04X}", console.cpu().read_a_register()),
+                                "b" => println!("b : {:#04X}", console.cpu().read_b_register()),
+                                "c" => println!("c : {:#04X}", console.cpu().read_c_register()),
+                                "d" => println!("d : {:#04X}", console.cpu().read_d_register()),
+                                "e" => println!("e : {:#04X}", console.cpu().read_e_register()),
+                                "h" => println!("h : {:#04X}", console.cpu().read_h_register()),
+                                "l" => println!("l : {:#04X}", console.cpu().read_l_register()),
+                                "bc" => println!("bc : {:#06X}", console.cpu().read_bc_register()),
+                                "de" => println!("de : {:#06X}", console.cpu().read_de_register()),
+                                "hl" => println!("hl : {:#06X}", console.cpu().read_hl_register()),
+                                "sp" => {
+                                    println!("sp : {:#06X}", console.cpu().read_stack_pointer())
+                                }
+                                _ => {
+                                    println!("Error : Unknown register or flag ({})", reg_name);
+                                }
                             }
-                        },
+                        }
                     },
                     "flags" | "f" => {
+                        let console = console.lock().unwrap();
                         println!(
                             "{} {} {} {}",
                             console.cpu().read_z_flag() as u8,
@@ -114,9 +123,11 @@ pub fn debug_console(mut console: Gameboy) {
                         );
                     }
                     "next" | "n" => {
+                        let mut console = console.lock().unwrap();
                         console.step();
                     }
                     "continue" | "c" => loop {
+                        let mut console = console.lock().unwrap();
                         console.step();
 
                         let pc = console.cpu().read_program_counter();
@@ -169,6 +180,8 @@ pub fn debug_console(mut console: Gameboy) {
                         }
                     },
                     "dump" => {
+                        let console = console.lock().unwrap();
+
                         const WIDTH: u16 = 16; // in tiles
                         const HEIGHT: u16 = 24; // in tiles, should be equal to 384/WIDTH
 
