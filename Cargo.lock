@@ -1078,6 +1078,7 @@ dependencies = [
  "objc2-foundation",
  "parking_lot",
  "percent-encoding",
+ "pollster",
  "raw-window-handle 0.5.2",
  "raw-window-handle 0.6.2",
  "static_assertions",
@@ -1085,6 +1086,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time 0.2.4",
+ "wgpu",
  "winapi",
  "winit 0.29.15",
 ]
@@ -1504,8 +1506,10 @@ dependencies = [
 name = "gbemulator"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "eframe",
  "egui",
+ "egui-wgpu",
  "egui_extras",
  "env_logger",
  "log",
@@ -3654,6 +3658,7 @@ dependencies = [
  "document-features",
  "js-sys",
  "log",
+ "naga",
  "parking_lot",
  "profiling",
  "raw-window-handle 0.6.2",
@@ -3704,6 +3709,7 @@ dependencies = [
  "arrayvec",
  "ash",
  "bitflags 2.6.0",
+ "block",
  "cfg_aliases 0.1.1",
  "core-graphics-types",
  "glow",
