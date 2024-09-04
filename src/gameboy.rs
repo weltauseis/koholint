@@ -36,6 +36,62 @@ impl Gameboy {
         self.execute_instruction(instr);
     }
 
+    // returns a 256 * 256 image (32 * 32 tiles)
+    // the gameboy holds only 384 tiles, so that's 32 * 12
+    // so a good chunk of the atlas is empty
+    pub fn get_tiles_as_rgba8unorm_atlas(&self) -> [u8; 4 * 256 * 256] {
+        let mut img = [0u8; 4 * 256 * 256];
+
+        // https://gbdev.io/pandocs/Tile_Data.html
+        // each tile is 16 bytes in memory
+        // each couple of bytes encodes a line of the tile
+
+        // for each tile
+        for id in 0..384usize {
+            let address = (0x8000 + id * 16) as u16;
+
+            // for each line of the tile
+            for y in 0..8 {
+                let byte_1 = self.memory.read_byte(address + y * 2);
+                let byte_2 = self.memory.read_byte(address + y * 2 + 1);
+
+                for x in 0..8 {
+                    let mut value: u8 = 0;
+
+                    let bit_0 = byte_1 >> (7 - x) & 1;
+                    let bit_1 = byte_2 >> (7 - x) & 1;
+
+                    value |= bit_0;
+                    value |= bit_1 << 1;
+
+                    let pixel =
+                        // tile start                              | pixel start
+                        (8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((7 - y as usize) * 8 * 32) + (x as usize)) * 4;
+
+                    img[pixel..(pixel + 4)].copy_from_slice(match value {
+                        0 => &[15, 15, 27, /* alpha */ 255],
+                        1 => &[86, 90, 117, /* alpha */ 255],
+                        2 => &[198, 183, 190, /* alpha */ 255],
+                        3 => &[250, 251, 246, /* alpha */ 255],
+                        _ => &[255, 0, 0, 255, /* alpha */ 255],
+                    })
+                }
+            }
+        }
+
+        /* for pixel in 0..(256 * 256) {
+            img[(pixel * 4)..(pixel * 4 + 4)].copy_from_slice(
+                if (((pixel % 256) / 32) % 2 == 0) && (((pixel / 256) / 32) % 2 == 1) {
+                    &[255, 0, 0, 255]
+                } else {
+                    &[0, 0, 255, 255]
+                },
+            );
+        } */
+
+        return img;
+    }
+
     fn execute_instruction(&mut self, instr: Instruction) {
         use Operand::*;
 

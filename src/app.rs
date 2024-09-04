@@ -1,13 +1,17 @@
-use std::num::NonZeroU64;
+use std::{default, num::NonZeroU64};
 
 use crate::{decoding::decode_instruction, gameboy::Gameboy};
 use eframe::{
     egui_wgpu::wgpu::util::DeviceExt,
     egui_wgpu::{self, wgpu},
 };
+use egui::TextEdit;
 
 pub struct EmulatorApp {
     console: Gameboy,
+    breakpoints: Vec<u16>,
+    breakpoint_field: String,
+    paused: bool,
     angle: f32,
 }
 
@@ -30,16 +34,36 @@ impl EmulatorApp {
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("custom3d"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: NonZeroU64::new(16),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: NonZeroU64::new(16),
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+            ],
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -77,13 +101,44 @@ impl EmulatorApp {
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
 
+        let tile_atlas = device.create_texture(&wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: 256,
+                height: 256,
+                depth_or_array_layers: 1,
+            },
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            label: Some("tiles atlas texture"),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            view_formats: &[],
+        });
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            ..Default::default()
+        });
+
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("custom3d"),
             layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(
+                        &tile_atlas.create_view(&wgpu::TextureViewDescriptor::default()),
+                    ),
+                },
+            ],
         });
 
         wgpu_render_state
@@ -94,11 +149,15 @@ impl EmulatorApp {
                 pipeline,
                 bind_group,
                 uniform_buffer,
+                tile_atlas,
             });
 
         return EmulatorApp {
             console,
             angle: 0.0,
+            breakpoints: Vec::new(),
+            paused: true,
+            breakpoint_field: String::new(),
         };
     }
 }
@@ -113,6 +172,48 @@ impl eframe::App for EmulatorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
+
+        while !self.paused {
+            self.console.step();
+            let pc = self.console.cpu().read_program_counter();
+            if self.breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
+                self.paused = true;
+                break;
+            }
+        }
+
+        egui::SidePanel::right(egui::Id::new("bottom pannel")).show(ctx, |ui| {
+            if ui.button("Next").clicked() {
+                self.console.step();
+            }
+            if ui.button("Continue").clicked() {
+                self.paused = false;
+            }
+
+            ui.add(TextEdit::singleline(&mut self.breakpoint_field));
+            if ui.button("Add breakpoint").clicked() {
+                let address = match u16::from_str_radix(&self.breakpoint_field, 16) {
+                    Ok(parsed) => parsed,
+                    Err(e) => {
+                        println!("Error : {e}");
+                        return;
+                    }
+                };
+
+                if self.breakpoints.contains(&address) {
+                    println!("Error : Breakpoint is already placed");
+                    return;
+                }
+
+                self.breakpoints.push(address);
+                self.breakpoint_field.clear();
+            }
+
+            ui.heading("Breakpoints :");
+            for bp in &self.breakpoints {
+                ui.label(format!("{bp:#06X}"));
+            }
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
@@ -146,12 +247,6 @@ impl eframe::App for EmulatorApp {
                     ui.label("Drag to rotate!");
                 });
         });
-
-        egui::TopBottomPanel::bottom(egui::Id::new("bottom pannel")).show(ctx, |ui| {
-            if ui.button("Next").clicked() {
-                self.console.step();
-            }
-        });
     }
 }
 
@@ -177,6 +272,7 @@ impl eframe::App for EmulatorApp {
 // which can be used to issue draw commands.
 struct CustomTriangleCallback {
     angle: f32,
+    tile_atlas_data: [u8; 256 * 256 * 4],
 }
 
 impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
@@ -189,7 +285,7 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let resources: &TriangleRenderResources = resources.get().unwrap();
-        resources.prepare(device, queue, self.angle);
+        resources.prepare(device, queue, self.angle, &self.tile_atlas_data);
         Vec::new()
     }
 
@@ -212,7 +308,10 @@ impl EmulatorApp {
         self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
-            CustomTriangleCallback { angle: self.angle },
+            CustomTriangleCallback {
+                angle: self.angle,
+                tile_atlas_data: self.console.get_tiles_as_rgba8unorm_atlas(),
+            },
         ));
     }
 }
@@ -221,22 +320,48 @@ struct TriangleRenderResources {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     uniform_buffer: wgpu::Buffer,
+    tile_atlas: wgpu::Texture,
 }
 
 impl TriangleRenderResources {
-    fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
+    fn prepare(
+        &self,
+        _device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        angle: f32,
+        tile_atlas_data: &[u8],
+    ) {
         // Update our uniform buffer with the angle from the UI
         queue.write_buffer(
             &self.uniform_buffer,
             0,
             bytemuck::cast_slice(&[angle, 0.0, 0.0, 0.0]),
         );
+        queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &self.tile_atlas,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            tile_atlas_data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * 256),
+                rows_per_image: Some(256),
+            },
+            wgpu::Extent3d {
+                width: 256,
+                height: 256,
+                depth_or_array_layers: 1,
+            },
+        )
     }
 
     fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
         // Draw our triangle!
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
+        render_pass.draw(0..6, 0..1);
     }
 }
