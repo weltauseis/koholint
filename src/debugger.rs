@@ -220,3 +220,17 @@ pub fn debug_console(mut console: Gameboy) {
         }
     }
 }
+
+/* pub fn disassemble_rom(console: &Gameboy) -> Vec<(u16, String)> {
+    let mut disassembly: Vec<(u16, String)> = Vec::new();
+
+    let mut pc = 0;
+    // FIXME : this currently only disassembles the boot rom
+    for _ in 0..64 {
+        let instr = decode_instruction(console, pc);
+        disassembly.push((pc, instr.to_string()));
+        pc += instr.size;
+    }
+
+    return disassembly;
+} */

@@ -1,18 +1,12 @@
-use std::{default, num::NonZeroU64};
-
-use crate::{decoding::decode_instruction, gameboy::Gameboy};
-use eframe::{
-    egui_wgpu::wgpu::util::DeviceExt,
-    egui_wgpu::{self, wgpu},
-};
-use egui::TextEdit;
+use crate::{debugger, decoding::decode_instruction, gameboy::Gameboy};
+use eframe::egui_wgpu::{self, wgpu};
+use egui::{Color32, TextEdit};
 
 pub struct EmulatorApp {
     console: Gameboy,
     breakpoints: Vec<u16>,
     breakpoint_field: String,
     paused: bool,
-    angle: f32,
 }
 
 impl EmulatorApp {
@@ -37,16 +31,6 @@ impl EmulatorApp {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(16),
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     // This should match the filterable field of the
                     // corresponding Texture entry above.
@@ -54,7 +38,7 @@ impl EmulatorApp {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -93,14 +77,6 @@ impl EmulatorApp {
             multiview: None,
         });
 
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("custom3d"),
-            contents: bytemuck::cast_slice(&[0.0_f32; 4]), // 16 bytes aligned!
-            // Mapping at creation (as done by the create_buffer_init utility) doesn't require us to to add the MAP_WRITE usage
-            // (this *happens* to workaround this bug )
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-        });
-
         let tile_atlas = device.create_texture(&wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
                 width: 256,
@@ -126,14 +102,10 @@ impl EmulatorApp {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
                     resource: wgpu::BindingResource::Sampler(&sampler),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 2,
+                    binding: 1,
                     resource: wgpu::BindingResource::TextureView(
                         &tile_atlas.create_view(&wgpu::TextureViewDescriptor::default()),
                     ),
@@ -148,13 +120,11 @@ impl EmulatorApp {
             .insert(TriangleRenderResources {
                 pipeline,
                 bind_group,
-                uniform_buffer,
                 tile_atlas,
             });
 
         return EmulatorApp {
             console,
-            angle: 0.0,
             breakpoints: Vec::new(),
             paused: true,
             breakpoint_field: String::new(),
@@ -217,6 +187,12 @@ impl eframe::App for EmulatorApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
+
+            // screen
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.custom_painting(ui);
+            });
+
             // assembly view
             {
                 let pc = self.console.cpu().read_program_counter();
@@ -224,28 +200,19 @@ impl eframe::App for EmulatorApp {
                 let mut to_list = 5;
                 while to_list > 0 {
                     let instr = decode_instruction(&self.console, pos);
-                    ui.label(format!("{:#06X} | {}", pos, instr));
+                    ui.label(
+                        egui::RichText::new(format!("{:#06X} | {}", pos, instr)).color(
+                            if pos == pc {
+                                Color32::YELLOW
+                            } else {
+                                Color32::WHITE
+                            },
+                        ),
+                    );
                     pos += instr.size;
                     to_list -= 1;
                 }
             }
-
-            egui::ScrollArea::both()
-                .auto_shrink(false)
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-                        ui.label("The triangle is being painted using ");
-                        ui.hyperlink_to("WGPU", "https://wgpu.rs");
-                        ui.label(" (Portable Rust graphics API awesomeness)");
-                    });
-                    ui.label("It's not a very impressive demo, but it shows you can embed 3D inside of egui.");
-
-                    egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                        self.custom_painting(ui);
-                    });
-                    ui.label("Drag to rotate!");
-                });
         });
     }
 }
@@ -271,7 +238,6 @@ impl eframe::App for EmulatorApp {
 // The paint callback is called after finish prepare and is given access to egui's main render pass,
 // which can be used to issue draw commands.
 struct CustomTriangleCallback {
-    angle: f32,
     tile_atlas_data: [u8; 256 * 256 * 4],
 }
 
@@ -285,7 +251,7 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let resources: &TriangleRenderResources = resources.get().unwrap();
-        resources.prepare(device, queue, self.angle, &self.tile_atlas_data);
+        resources.prepare(device, queue, &self.tile_atlas_data);
         Vec::new()
     }
 
@@ -302,14 +268,11 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
 
 impl EmulatorApp {
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
-        let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
+        let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::click());
 
-        self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             CustomTriangleCallback {
-                angle: self.angle,
                 tile_atlas_data: self.console.get_tiles_as_rgba8unorm_atlas(),
             },
         ));
@@ -319,24 +282,12 @@ impl EmulatorApp {
 struct TriangleRenderResources {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
     tile_atlas: wgpu::Texture,
 }
 
 impl TriangleRenderResources {
-    fn prepare(
-        &self,
-        _device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        angle: f32,
-        tile_atlas_data: &[u8],
-    ) {
+    fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, tile_atlas_data: &[u8]) {
         // Update our uniform buffer with the angle from the UI
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[angle, 0.0, 0.0, 0.0]),
-        );
         queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.tile_atlas,
@@ -355,7 +306,7 @@ impl TriangleRenderResources {
                 height: 256,
                 depth_or_array_layers: 1,
             },
-        )
+        );
     }
 
     fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {

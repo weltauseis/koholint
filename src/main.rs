@@ -1,14 +1,4 @@
-use std::{
-    error::Error,
-    sync::{Arc, Mutex},
-};
-
-use debugger::debug_console;
 use gameboy::Gameboy;
-use log::info;
-use winit::{
-    application::ApplicationHandler, event::WindowEvent, event_loop::EventLoop, window::Window,
-};
 
 mod app;
 #[allow(dead_code)]
@@ -32,9 +22,7 @@ fn main() {
     let console = Gameboy::new(rom);
 
     let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([512.0, 512.0])
-            .with_min_inner_size([300.0, 220.0]),
+        viewport: egui::ViewportBuilder::default(),
         ..Default::default()
     };
 

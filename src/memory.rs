@@ -211,4 +211,11 @@ impl Memory {
         self.write_byte(address, value_bytes[0]);
         self.write_byte(address + 1, value_bytes[1]);
     }
+
+    // LCD control byte flags
+    pub fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
+        let lcd_ctrl = self.read_byte(0xFF40);
+
+        return ((lcd_ctrl >> bit) & 1) == 1;
+    }
 }
