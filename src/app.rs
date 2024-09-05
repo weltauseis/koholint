@@ -183,6 +183,17 @@ impl eframe::App for EmulatorApp {
             for bp in &self.breakpoints {
                 ui.label(format!("{bp:#06X}"));
             }
+
+            /*             if (ui.button("Print Tile Map")).clicked() {
+                let tilemap = self.console.get_tile_map();
+                for y in 0..32 {
+                    for x in 0..32 {
+                        print!("{:03} ", tilemap[y * 32 + x]);
+                    }
+
+                    print!("\n");
+                }
+            } */
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

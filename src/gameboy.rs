@@ -95,11 +95,12 @@ impl Gameboy {
     pub fn get_tile_map(&self) -> [u32; 32 * 32] {
         //https://gbdev.io/pandocs/Tile_Maps.html
         let mut tilemap = [0; 32 * 32];
-        let addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
+        let _addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
 
         for i in 0..(32 * 32) {
             let mem_index = self.memory.read_byte(0x9800 + i);
-            tilemap[i as usize] = if addressing_mode_bit {
+            tilemap[i as usize] = mem_index as u32;
+            /* tilemap[i as usize] = if addressing_mode_bit {
                 mem_index as u32
             } else {
                 if (mem_index as usize) < 128 {
@@ -107,7 +108,7 @@ impl Gameboy {
                 } else {
                     255 - mem_index as u32
                 }
-            };
+            }; */
         }
 
         return tilemap;
