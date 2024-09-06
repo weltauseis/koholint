@@ -1,6 +1,7 @@
 use gameboy::Gameboy;
+use glfw::{Context, Window};
+use pollster::FutureExt;
 
-mod app;
 #[allow(dead_code)]
 mod cpu;
 mod debugger;
@@ -9,6 +10,7 @@ mod decoding;
 mod gameboy;
 #[allow(non_contiguous_range_endpoints)]
 mod memory;
+mod renderer;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -21,15 +23,24 @@ fn main() {
     let rom = std::fs::read(&args[1]).unwrap();
     let console = Gameboy::new(rom);
 
-    let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default(),
-        ..Default::default()
-    };
+    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
+    glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
-    eframe::run_native(
-        "Koholint Gameboy Emulator",
-        native_options,
-        Box::new(|cc| Ok(Box::new(app::EmulatorApp::new(cc, console)))),
-    )
-    .unwrap();
+    let (mut window, events) = glfw
+        .create_window(800, 600, "Hello this is window", glfw::WindowMode::Windowed)
+        .expect("Failed to create GLFW window.");
+
+    window.set_key_polling(true);
+    //window.make_current();
+
+    let mut state = renderer::RendererState::new(&mut window).block_on();
+
+    while !state.window().should_close() {
+        glfw.poll_events();
+        for (_, event) in glfw::flush_messages(&events) {
+            state.handle_window_event(event);
+        }
+
+        state.render().unwrap();
+    }
 }
