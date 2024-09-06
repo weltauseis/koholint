@@ -1,3 +1,6 @@
+use std::sync::{Arc, Mutex};
+
+use debugger::Debugger;
 use gameboy::Gameboy;
 use glfw::{Context, Window};
 use pollster::FutureExt;
@@ -21,7 +24,11 @@ fn main() {
     env_logger::init();
 
     let rom = std::fs::read(&args[1]).unwrap();
-    let console = Gameboy::new(rom);
+    let console = Arc::new(Mutex::new(Gameboy::new(rom)));
+    let mut debugger = Debugger::new(console.clone());
+    std::thread::spawn(move || loop {
+        debugger.prompt_command();
+    });
 
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
