@@ -14,10 +14,11 @@ pub struct RendererState<'a> {
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     window: &'a mut Window,
+    console: Arc<Mutex<Gameboy>>,
     render_pipeline: wgpu::RenderPipeline,
     tile_atlas: wgpu::Texture,
-    console: Arc<Mutex<Gameboy>>,
     tile_map_bind_group: wgpu::BindGroup,
+    tile_map_indices_buffer: wgpu::Buffer,
 }
 
 impl<'a> RendererState<'a> {
@@ -104,6 +105,13 @@ impl<'a> RendererState<'a> {
             ..Default::default()
         });
 
+        let tile_map_indices_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("tile map indices buffer"),
+            size: 32 * 32 * 4 as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let tile_map_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("tile map bind group layout"),
@@ -124,6 +132,16 @@ impl<'a> RendererState<'a> {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
             });
 
@@ -138,6 +156,12 @@ impl<'a> RendererState<'a> {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&tile_atlas_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(
+                        tile_map_indices_buffer.as_entire_buffer_binding(),
+                    ),
                 },
             ],
         });
@@ -203,6 +227,7 @@ impl<'a> RendererState<'a> {
             tile_atlas,
             console,
             tile_map_bind_group,
+            tile_map_indices_buffer,
         }
     }
 
@@ -220,7 +245,7 @@ impl<'a> RendererState<'a> {
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                &console.get_tiles_as_rgba8unorm_atlas(),
+                &console.get_tile_atlas_rgba8(),
                 wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * 256),
@@ -232,6 +257,12 @@ impl<'a> RendererState<'a> {
                     depth_or_array_layers: 1,
                 },
             );
+
+            self.queue.write_buffer(
+                &self.tile_map_indices_buffer,
+                0,
+                bytemuck::cast_slice(&console.get_tile_map()),
+            )
         }
 
         let output = self.surface.get_current_texture()?;
@@ -267,7 +298,7 @@ impl<'a> RendererState<'a> {
         });
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(0, &self.tile_map_bind_group, &[]);
-        render_pass.draw(0..6, 0..1);
+        render_pass.draw(0..6, 0..(32 * 32));
         drop(render_pass);
 
         self.queue.submit([encoder.finish()]);

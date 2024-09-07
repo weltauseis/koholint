@@ -34,7 +34,12 @@ fn main() {
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
     let (mut window, events) = glfw
-        .create_window(600, 600, "Hello this is window", glfw::WindowMode::Windowed)
+        .create_window(
+            600,
+            600,
+            "Koholint Gameboy Emulator",
+            glfw::WindowMode::Windowed,
+        )
         .expect("Failed to create GLFW window.");
 
     window.set_key_polling(true);

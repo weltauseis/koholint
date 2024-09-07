@@ -22,11 +22,34 @@ struct VertexOutput {
     @location(0) texcoord: vec2<f32>,
 }
 
+@group(0) @binding(2)
+
+var<storage> tile_map_indices: array<u32>;
+
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) in_vertex_index: u32, @builtin(instance_index) in_instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(v_positions[in_vertex_index], 0.0, 1.0);
-    out.texcoord = v_texcoords[in_vertex_index];
+
+    // place the quad based on the instance
+    let i = f32(in_instance_index);
+    var clip_position = (v_positions[in_vertex_index]);
+    clip_position /= 32.0;
+    clip_position += vec2<f32>(-1.0, 1.0);
+    clip_position += vec2<f32>(1.0/32.0, -1.0/32.0); // top left corner
+    clip_position += (i % 32.0) * vec2<f32>(1.0/16.0, 0.0);
+    clip_position += floor(i / 32.0) * vec2<f32>(0.0, -1.0/16.0); // shifted x and y
+
+    // place the texture coordinates on the atlas based on the index in the tile map indices buffer
+
+    let tilemap_idx = tile_map_indices[in_instance_index];
+    var texcoord = (v_texcoords[in_vertex_index]);
+    texcoord /= 32.0; // top left corner
+    texcoord += f32(tilemap_idx % 32) * vec2<f32>(1.0/32.0, 0.0);
+    texcoord += f32(tilemap_idx / 32) * vec2<f32>(0.0, 1.0/32.0); // shifted x and y
+
+
+    out.clip_position = vec4<f32>(clip_position, 0.0, 1.0);
+    out.texcoord = texcoord;
     return out;
 }
 

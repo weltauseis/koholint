@@ -39,12 +39,15 @@ impl Gameboy {
     // returns a 256 * 256 image (32 * 32 tiles)
     // the gameboy holds only 384 tiles, so that's 32 * 12
     // so a good chunk of the atlas is empty
-    pub fn get_tiles_as_rgba8unorm_atlas(&self) -> [u8; 4 * 256 * 256] {
+    pub fn get_tile_atlas_rgba8(&self) -> [u8; 4 * 256 * 256] {
         let mut img = [0u8; 4 * 256 * 256];
 
         // https://gbdev.io/pandocs/Tile_Data.html
         // each tile is 16 bytes in memory
         // each couple of bytes encodes a line of the tile
+
+        // this whole thing is pretty convoluted but i don't think there's a better way,
+        // as the memory layout of the gameboy tiles is very different from that of "normal" images
 
         // for each tile
         for id in 0..384usize {
@@ -79,16 +82,6 @@ impl Gameboy {
             }
         }
 
-        /* for pixel in 0..(256 * 256) {
-            img[(pixel * 4)..(pixel * 4 + 4)].copy_from_slice(
-                if (((pixel % 256) / 32) % 2 == 0) && (((pixel / 256) / 32) % 2 == 1) {
-                    &[255, 0, 0, 255]
-                } else {
-                    &[0, 0, 255, 255]
-                },
-            );
-        } */
-
         return img;
     }
 
@@ -109,6 +102,17 @@ impl Gameboy {
                     255 - mem_index as u32
                 }
             }; */
+        }
+
+        return tilemap;
+    }
+
+    pub fn _get_debug_tile_map(&self) -> [u32; 32 * 32] {
+        //https://gbdev.io/pandocs/Tile_Maps.html
+        let mut tilemap = [0; 32 * 32];
+
+        for i in 0..(32 * 32) {
+            tilemap[i as usize] = (i % 384) as u32;
         }
 
         return tilemap;

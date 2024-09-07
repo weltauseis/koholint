@@ -184,51 +184,31 @@ impl Debugger {
                         }
                     },
                     "dump" => {
-                        const WIDTH: u16 = 16; // in tiles
-                        const HEIGHT: u16 = 24; // in tiles, should be equal to 384/WIDTH
+                        let mut ppm_string = String::from("P3\n256 256\n255\n");
 
-                        let mut ppm_string = format!("P3\n{} {}\n255\n", WIDTH * 8, HEIGHT * 8);
-                        // https://gbdev.io/pandocs/Tile_Data.html#vram-tile-data
+                        let tile_atlas = console_locked.get_tile_atlas_rgba8();
 
-                        // this whole thing is pretty convoluted but i don't think there's a better way,
-                        // as the memory layout of the gameboy tiles is very different from that of "normal" images
-                        for i in 0..HEIGHT {
-                            for y in 0..8 {
-                                for j in 0..WIDTH {
-                                    let line_address =
-                                            //  vram   | start of 16-bytes tile      | line offset
-                                                0x8000 + (j * 16) + (i * 16 * WIDTH) + (2 * y);
-                                    let byte_1: u8 =
-                                        console_locked.memory().read_byte(line_address);
-                                    let byte_2: u8 =
-                                        console_locked.memory().read_byte(line_address + 1);
-                                    for x in 0..8 {
-                                        let mut pixel: u8 = 0;
-
-                                        let bit_0 = byte_1 >> (7 - x) & 1;
-                                        let bit_1 = byte_2 >> (7 - x) & 1;
-
-                                        pixel |= bit_0;
-                                        pixel |= bit_1 << 1;
-
-                                        ppm_string.push_str(match pixel {
-                                            0 => "15 15 27\n",
-                                            1 => "86 90 117\n",
-                                            2 => "198 183 190\n",
-                                            3 => "250 251 246\n",
-                                            _ => {
-                                                error!("VERY weird value in VRAM dump");
-                                                "255 0 0\n"
-                                            }
-                                        });
-                                    }
-                                }
-                            }
+                        for pixel in 0..(256 * 256) {
+                            ppm_string.push_str(&format!(
+                                "{} {} {}\n",
+                                tile_atlas[pixel * 4],
+                                tile_atlas[pixel * 4 + 1],
+                                tile_atlas[pixel * 4 + 2]
+                            ));
                         }
 
                         std::fs::create_dir_all("dumps").unwrap();
                         let mut file = std::fs::File::create(format!("dumps/vram.ppm")).unwrap();
                         file.write_all(ppm_string.as_bytes()).unwrap();
+                    }
+                    "tilemap" => {
+                        let tilemap = console_locked.get_tile_map();
+                        for y in 0..32 {
+                            for x in 0..32 {
+                                print!("{:03} ", tilemap[y * 32 + x]);
+                            }
+                            print!("\n");
+                        }
                     }
                     _ => {
                         println!("Error : Unknown command ({})", subcommands[0]);
