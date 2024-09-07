@@ -195,6 +195,10 @@ impl Memory {
             0xFF80..0xFFFF => {
                 self.hram[(address - 0xFF80) as usize] = value;
             }
+            // INTERRUP
+            0xFFFF => {
+                warn!("CALL TO UNIMPLEMENTED INTERRUPT WRITE")
+            }
             _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
         }
     }

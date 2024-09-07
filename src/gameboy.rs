@@ -1,3 +1,5 @@
+use log::warn;
+
 use crate::{
     cpu::CPU,
     decoding::{self, Instruction, Operand, Operation},
@@ -88,7 +90,7 @@ impl Gameboy {
     pub fn get_tile_map(&self) -> [u32; 32 * 32] {
         //https://gbdev.io/pandocs/Tile_Maps.html
         let mut tilemap = [0; 32 * 32];
-        let _addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
+        //let _addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
 
         for i in 0..(32 * 32) {
             let mem_index = self.memory.read_byte(0x9800 + i);
@@ -786,6 +788,9 @@ impl Gameboy {
                 self.cpu.write_n_flag(true);
                 self.cpu.write_h_flag((a & 0xF) < (other & 0xF));
                 self.cpu.write_c_flag(a < other);
+            }
+            Operation::DI => {
+                warn!("UNHANDLED DI INSTRUCTION");
             }
             _ => panic!(
                 "EXECUTION : UNHANDLED INSTRUCTION ({instr}) at PC {:#06X}",

@@ -3,24 +3,51 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use log::error;
-
 use crate::{decoding::decode_instruction, gameboy::Gameboy};
 
 pub struct Debugger {
     console: Arc<Mutex<Gameboy>>,
     breakpoints: Vec<u16>,
+    paused: bool,
 }
 
 impl Debugger {
-    pub fn new(console: Arc<Mutex<Gameboy>>) -> Self {
+    pub fn new(console: Arc<Mutex<Gameboy>>, paused: bool) -> Self {
         return Self {
             console,
             breakpoints: Vec::new(),
+            paused,
         };
     }
 
-    pub fn prompt_command(&mut self) {
+    pub fn run(&mut self) {
+        loop {
+            if !self.paused {
+                loop {
+                    let now = std::time::Instant::now();
+
+                    let pc = {
+                        let mut console_locked = self.console.lock().unwrap();
+                        console_locked.step();
+
+                        console_locked.cpu().read_program_counter()
+                    };
+
+                    if self.breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
+                        println!("Reached breakpoint ({:#06X})", pc);
+                        self.paused = true;
+                        break;
+                    }
+
+                    while now.elapsed() < std::time::Duration::from_micros(30) {}
+                }
+            }
+
+            self.prompt_command();
+        }
+    }
+
+    fn prompt_command(&mut self) {
         // prompt
         print!("(dbg)> ");
         std::io::stdout().flush().unwrap();
@@ -59,7 +86,7 @@ impl Debugger {
                     }
                     "exit" => {
                         println!("Exiting debugger...");
-                        return;
+                        std::process::exit(0);
                     }
                     "list" | "l" => {
                         // TODO: find a way to show previous instructions
@@ -131,15 +158,9 @@ impl Debugger {
                     "next" | "n" => {
                         console_locked.step();
                     }
-                    "continue" | "c" => loop {
-                        console_locked.step();
-
-                        let pc = console_locked.cpu().read_program_counter();
-                        if self.breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
-                            println!("Reached breakpoint ({:#06X})", pc);
-                            break;
-                        }
-                    },
+                    "continue" | "c" => {
+                        self.paused = false;
+                    }
                     "break" | "b" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing breakpoint adress");

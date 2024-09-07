@@ -53,6 +53,7 @@ pub enum Operation {
     RLCA,
     RRCA,
     CP { y: Operand },
+    DI,
 }
 
 pub struct Instruction {
@@ -591,6 +592,10 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 size: 2,
             };
         }
+        0xF3 => {
+            // di
+            return Instruction { op: DI, size: 1 };
+        }
         0xFE => {
             // cp imm8
             return Instruction {
@@ -668,6 +673,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RLCA => String::from("rlca"),
         Operation::RRCA => String::from("rrca"),
         Operation::CP { y } => format!("cp {y}"),
+        Operation::DI => String::from("di"),
     }
 }
 

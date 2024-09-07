@@ -25,10 +25,11 @@ fn main() {
 
     let rom = std::fs::read(&args[1]).unwrap();
     let console = Arc::new(Mutex::new(Gameboy::new(rom)));
-    let mut debugger = Debugger::new(console.clone());
-    std::thread::spawn(move || loop {
-        debugger.prompt_command();
-    });
+
+    let flag_paused = args.iter().any(|a| a.eq("-p"));
+
+    let mut debugger = Debugger::new(console.clone(), flag_paused);
+    std::thread::spawn(move || debugger.run());
 
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
