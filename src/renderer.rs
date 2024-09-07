@@ -212,7 +212,7 @@ impl<'a> RendererState<'a> {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         {
-            let console = self.console.lock().unwrap();
+            let console = self.console.lock().expect("Debugger may have crashed ");
             self.queue.write_texture(
                 wgpu::ImageCopyTexture {
                     texture: &self.tile_atlas,

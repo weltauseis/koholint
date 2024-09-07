@@ -66,7 +66,7 @@ impl Gameboy {
 
                     let pixel =
                         // tile start                              | pixel start
-                        (8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((7 - y as usize) * 8 * 32) + (x as usize)) * 4;
+                        (8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((y as usize) * 8 * 32) + (x as usize)) * 4;
 
                     img[pixel..(pixel + 4)].copy_from_slice(match value {
                         0 => &[15, 15, 27, /* alpha */ 255],

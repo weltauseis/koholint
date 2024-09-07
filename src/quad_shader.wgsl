@@ -7,13 +7,14 @@ var<private> v_positions: array<vec2<f32>, 6> = array<vec2<f32>, 6> (
     vec2<f32>(1.0, -1.0),
 );
 
+// texture coordinates are flipped on the y axis
 var<private> v_texcoords: array<vec2<f32>, 6> = array<vec2<f32>, 6> (
-    vec2<f32>(0.0, 1.0),
-    vec2<f32>(1.0, 0.0),
     vec2<f32>(0.0, 0.0),
-    vec2<f32>(0.0, 1.0),
     vec2<f32>(1.0, 1.0),
+    vec2<f32>(0.0, 1.0),
+    vec2<f32>(0.0, 0.0),
     vec2<f32>(1.0, 0.0),
+    vec2<f32>(1.0, 1.0),
 );
 
 struct VertexOutput {
