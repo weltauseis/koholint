@@ -1,4 +1,8 @@
-use glfw::{Context, Window};
+use std::sync::{Arc, Mutex};
+
+use glfw::Window;
+
+use crate::gameboy::Gameboy;
 
 pub struct RendererState<'a> {
     surface: wgpu::Surface<'a>,
@@ -10,10 +14,14 @@ pub struct RendererState<'a> {
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     window: &'a mut Window,
+    render_pipeline: wgpu::RenderPipeline,
+    tile_atlas: wgpu::Texture,
+    console: Arc<Mutex<Gameboy>>,
+    tile_map_bind_group: wgpu::BindGroup,
 }
 
 impl<'a> RendererState<'a> {
-    pub async fn new(window: &'a mut Window) -> RendererState<'a> {
+    pub async fn new(window: &'a mut Window, console: Arc<Mutex<Gameboy>>) -> RendererState<'a> {
         let size = window.get_size();
 
         // The instance is a handle to our GPU
@@ -73,6 +81,117 @@ impl<'a> RendererState<'a> {
 
         surface.configure(&device, &config);
 
+        let tile_atlas = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("tile atlas texture"),
+            size: wgpu::Extent3d {
+                width: 256,
+                height: 256,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let tile_atlas_view = tile_atlas.create_view(&wgpu::TextureViewDescriptor::default());
+        let tile_atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let tile_map_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("tile map bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+        let tile_map_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("tile map bind group"),
+            layout: &tile_map_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&tile_atlas_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&tile_atlas_sampler),
+                },
+            ],
+        });
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("quad shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("quad_shader.wgsl").into()),
+        });
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("render pipeline layout"),
+                bind_group_layouts: &[&tile_map_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::all(),
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Cw,
+                cull_mode: Some(wgpu::Face::Back),
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+            cache: None,
+        });
+
         Self {
             window,
             surface,
@@ -80,14 +199,41 @@ impl<'a> RendererState<'a> {
             queue,
             config,
             size,
+            render_pipeline,
+            tile_atlas,
+            console,
+            tile_map_bind_group,
         }
     }
 
-    pub fn resize(&mut self, new_size: (i32, i32)) {
+    pub fn resize(&mut self, _new_size: (i32, i32)) {
         todo!()
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        {
+            let console = self.console.lock().unwrap();
+            self.queue.write_texture(
+                wgpu::ImageCopyTexture {
+                    texture: &self.tile_atlas,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &console.get_tiles_as_rgba8unorm_atlas(),
+                wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * 256),
+                    rows_per_image: Some(256),
+                },
+                wgpu::Extent3d {
+                    width: 256,
+                    height: 256,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+
         let output = self.surface.get_current_texture()?;
 
         let view = output
@@ -100,7 +246,7 @@ impl<'a> RendererState<'a> {
                 label: Some("Render Encoder"),
             });
 
-        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
@@ -119,6 +265,9 @@ impl<'a> RendererState<'a> {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_bind_group(0, &self.tile_map_bind_group, &[]);
+        render_pass.draw(0..6, 0..1);
         drop(render_pass);
 
         self.queue.submit([encoder.finish()]);

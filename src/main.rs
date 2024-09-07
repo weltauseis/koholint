@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 
 use debugger::Debugger;
 use gameboy::Gameboy;
-use glfw::{Context, Window};
 use pollster::FutureExt;
 
 #[allow(dead_code)]
@@ -13,6 +12,7 @@ mod decoding;
 mod gameboy;
 #[allow(non_contiguous_range_endpoints)]
 mod memory;
+#[allow(dead_code)]
 mod renderer;
 
 fn main() {
@@ -34,13 +34,13 @@ fn main() {
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
     let (mut window, events) = glfw
-        .create_window(800, 600, "Hello this is window", glfw::WindowMode::Windowed)
+        .create_window(600, 600, "Hello this is window", glfw::WindowMode::Windowed)
         .expect("Failed to create GLFW window.");
 
     window.set_key_polling(true);
     //window.make_current();
 
-    let mut state = renderer::RendererState::new(&mut window).block_on();
+    let mut state = renderer::RendererState::new(&mut window, console.clone()).block_on();
 
     while !state.window().should_close() {
         glfw.poll_events();
