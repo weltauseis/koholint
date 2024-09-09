@@ -8,6 +8,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug executable 'gbemulator'",
+            "stopOnEntry": false,
             "cargo": {
                 "args": [
                     "build",
@@ -20,7 +21,7 @@
                 }
             },
             "args": [
-                "roms/DR_MARIO.bin"
+                "roms/DR-MARIO.bin"
             ],
             "cwd": "${workspaceFolder}",
             "env": {

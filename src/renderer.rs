@@ -16,9 +16,8 @@ pub struct RendererState<'a> {
     window: &'a mut Window,
     console: Arc<Mutex<Gameboy>>,
     render_pipeline: wgpu::RenderPipeline,
-    tile_atlas: wgpu::Texture,
+    tile_map: wgpu::Texture,
     tile_map_bind_group: wgpu::BindGroup,
-    tile_map_indices_buffer: wgpu::Buffer,
 }
 
 impl<'a> RendererState<'a> {
@@ -82,8 +81,8 @@ impl<'a> RendererState<'a> {
 
         surface.configure(&device, &config);
 
-        let tile_atlas = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("tile atlas texture"),
+        let tile_map = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("tile map texture"),
             size: wgpu::Extent3d {
                 width: 256,
                 height: 256,
@@ -97,19 +96,12 @@ impl<'a> RendererState<'a> {
             view_formats: &[],
         });
 
-        let tile_atlas_view = tile_atlas.create_view(&wgpu::TextureViewDescriptor::default());
-        let tile_atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        let tile_map_view = tile_map.create_view(&wgpu::TextureViewDescriptor::default());
+        let tile_map_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
-        });
-
-        let tile_map_indices_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("tile map indices buffer"),
-            size: 32 * 32 * 4 as u64,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         });
 
         let tile_map_bind_group_layout =
@@ -132,16 +124,6 @@ impl<'a> RendererState<'a> {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
                 ],
             });
 
@@ -151,17 +133,11 @@ impl<'a> RendererState<'a> {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&tile_atlas_view),
+                    resource: wgpu::BindingResource::TextureView(&tile_map_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&tile_atlas_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Buffer(
-                        tile_map_indices_buffer.as_entire_buffer_binding(),
-                    ),
+                    resource: wgpu::BindingResource::Sampler(&tile_map_sampler),
                 },
             ],
         });
@@ -224,10 +200,9 @@ impl<'a> RendererState<'a> {
             config,
             size,
             render_pipeline,
-            tile_atlas,
+            tile_map,
             console,
             tile_map_bind_group,
-            tile_map_indices_buffer,
         }
     }
 
@@ -240,12 +215,12 @@ impl<'a> RendererState<'a> {
             let console = self.console.lock().expect("Debugger may have crashed ");
             self.queue.write_texture(
                 wgpu::ImageCopyTexture {
-                    texture: &self.tile_atlas,
+                    texture: &self.tile_map,
                     mip_level: 0,
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                &console.get_tile_atlas_rgba8(),
+                &console.get_tile_map(),
                 wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * 256),
@@ -257,12 +232,6 @@ impl<'a> RendererState<'a> {
                     depth_or_array_layers: 1,
                 },
             );
-
-            self.queue.write_buffer(
-                &self.tile_map_indices_buffer,
-                0,
-                bytemuck::cast_slice(&console.get_tile_map()),
-            )
         }
 
         let output = self.surface.get_current_texture()?;
@@ -298,7 +267,7 @@ impl<'a> RendererState<'a> {
         });
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(0, &self.tile_map_bind_group, &[]);
-        render_pass.draw(0..6, 0..(32 * 32));
+        render_pass.draw(0..6, 0..1);
         drop(render_pass);
 
         self.queue.submit([encoder.finish()]);

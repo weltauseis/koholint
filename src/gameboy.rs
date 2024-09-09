@@ -41,8 +41,8 @@ impl Gameboy {
     // returns a 256 * 256 image (32 * 32 tiles)
     // the gameboy holds only 384 tiles, so that's 32 * 12
     // so a good chunk of the atlas is empty
-    pub fn get_tile_atlas_rgba8(&self) -> [u8; 4 * 256 * 256] {
-        let mut img = [0u8; 4 * 256 * 256];
+    pub fn get_tile_atlas_rgba8(&self) -> Vec<u8> {
+        let mut img = vec![0u8; 4 * 256 * 256];
 
         // https://gbdev.io/pandocs/Tile_Data.html
         // each tile is 16 bytes in memory
@@ -87,14 +87,14 @@ impl Gameboy {
         return img;
     }
 
-    pub fn get_tile_map(&self) -> [u32; 32 * 32] {
+    pub fn get_tile_map(&self) -> Vec<u8> {
         //https://gbdev.io/pandocs/Tile_Maps.html
-        let mut tilemap = [0; 32 * 32];
+        let mut indexes = [0; 32 * 32];
         //let _addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
 
         for i in 0..(32 * 32) {
-            let mem_index = self.memory.read_byte(0x9800 + i);
-            tilemap[i as usize] = mem_index as u32;
+            let index = self.memory.read_byte(0x9800 + i);
+            indexes[i as usize] = index as u32;
             /* tilemap[i as usize] = if addressing_mode_bit {
                 mem_index as u32
             } else {
@@ -104,6 +104,33 @@ impl Gameboy {
                     255 - mem_index as u32
                 }
             }; */
+        }
+
+        let atlas = self.get_tile_atlas_rgba8();
+        let mut tilemap = vec![0u8; 4 * 256 * 256];
+
+        // for each tile
+        for tile in 0..(32 * 32) {
+            let index = indexes[tile] as usize;
+
+            // for each line of the tile
+            for y in 0..8 {
+                for x in 0..8 {
+                    let dst_pixel =
+                    // tile start                              | pixel start
+                    (8 * (tile % 32) + (8 * 8 * 32) * (tile / 32) + ((y as usize) * 8 * 32) + (x as usize)) * 4;
+
+                    let src_pixel = (8 * (index % 32)
+                        + (8 * 8 * 32) * (index / 32)
+                        + ((y as usize) * 8 * 32)
+                        + (x as usize))
+                        * 4;
+
+                    // https://lospec.com/palette-list/2bit-demichrome
+                    tilemap[dst_pixel..(dst_pixel + 4)]
+                        .copy_from_slice(&atlas[src_pixel..(src_pixel + 4)]);
+                }
+            }
         }
 
         return tilemap;
