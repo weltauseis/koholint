@@ -128,10 +128,13 @@ impl Memory {
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
-                warn!(
-                    "CALL TO UNIMPLEMENTED IO MEMORY READ (ADDRESS {:#06X})",
-                    address
-                );
+                if (address != 0xff42) && (address != 0xff43) {
+                    // reading of scrolling registers is okay
+                    warn!(
+                        "CALL TO UNIMPLEMENTED IO MEMORY READ (ADDRESS {:#06X})",
+                        address
+                    );
+                }
 
                 return self.io[(address - 0xFF00) as usize];
             }

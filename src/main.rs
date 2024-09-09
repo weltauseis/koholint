@@ -36,8 +36,8 @@ fn main() {
 
     let (mut window, events) = glfw
         .create_window(
-            600,
-            600,
+            640, // this is x4 the gameboy's resolution
+            576,
             "Koholint Gameboy Emulator",
             glfw::WindowMode::Windowed,
         )

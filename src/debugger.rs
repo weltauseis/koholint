@@ -39,7 +39,7 @@ impl Debugger {
                         break;
                     }
 
-                    while now.elapsed() < std::time::Duration::from_micros(30) {}
+                    while now.elapsed() < std::time::Duration::from_micros(20) {}
                 }
             }
 

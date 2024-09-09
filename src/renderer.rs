@@ -18,6 +18,7 @@ pub struct RendererState<'a> {
     render_pipeline: wgpu::RenderPipeline,
     tile_map: wgpu::Texture,
     tile_map_bind_group: wgpu::BindGroup,
+    scrolling_uniform_buffer: wgpu::Buffer,
 }
 
 impl<'a> RendererState<'a> {
@@ -104,6 +105,13 @@ impl<'a> RendererState<'a> {
             ..Default::default()
         });
 
+        let scrolling_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("scrolling buffer"),
+            size: 2 * size_of::<u32>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let tile_map_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("tile map bind group layout"),
@@ -124,6 +132,16 @@ impl<'a> RendererState<'a> {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
             });
 
@@ -139,12 +157,18 @@ impl<'a> RendererState<'a> {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&tile_map_sampler),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(
+                        scrolling_uniform_buffer.as_entire_buffer_binding(),
+                    ),
+                },
             ],
         });
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("quad shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("quad_shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("tilemap_shader.wgsl").into()),
         });
 
         let render_pipeline_layout =
@@ -203,6 +227,7 @@ impl<'a> RendererState<'a> {
             tile_map,
             console,
             tile_map_bind_group,
+            scrolling_uniform_buffer,
         }
     }
 
@@ -232,6 +257,12 @@ impl<'a> RendererState<'a> {
                     depth_or_array_layers: 1,
                 },
             );
+
+            self.queue.write_buffer(
+                &self.scrolling_uniform_buffer,
+                0,
+                bytemuck::cast_slice(&console.get_scrolling()),
+            )
         }
 
         let output = self.surface.get_current_texture()?;

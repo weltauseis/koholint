@@ -136,15 +136,13 @@ impl Gameboy {
         return tilemap;
     }
 
-    pub fn _get_debug_tile_map(&self) -> [u32; 32 * 32] {
-        //https://gbdev.io/pandocs/Tile_Maps.html
-        let mut tilemap = [0; 32 * 32];
+    // FIXME : LCD is always turned on for now, in reality it depends on
+    // a certain byte in memory : 	LD ($FF00+$40),A	; $005d  Turn on LCD, showing Background
+    pub fn get_scrolling(&self) -> [u32; 2] {
+        let y = self.memory.read_byte(0xff42);
+        let x = self.memory.read_byte(0xff43);
 
-        for i in 0..(32 * 32) {
-            tilemap[i as usize] = (i % 384) as u32;
-        }
-
-        return tilemap;
+        return [x as u32, y as u32];
     }
 
     fn execute_instruction(&mut self, instr: Instruction) {
