@@ -30,7 +30,6 @@ impl Debugger {
                         // acquire the console mutex
                         let mut console_locked = self.console.lock().unwrap();
 
-                        // execute instruction
                         console_locked.step();
 
                         // return the pc to check for breakpoints

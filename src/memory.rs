@@ -130,9 +130,8 @@ impl Memory {
             0xFF00..0xFF80 => {
                 // filtering the adress for logging purposes
                 match address {
-                    0xFF42..=0xFF43 => {
-                        /* those are the scrolling bytes, so it's fine to access */
-                    }
+                    0xFF42..=0xFF43 => { /* screen scrolling bytes,it's fine to access */ }
+                    0xFF07 => { /* timer info byte, fine too */ }
                     0xFF44 => {
                         // LY indicates the current horizontal line
                         warn!("UNIMPLEMENTED LY BYTE READ (0xFF44)");
@@ -250,15 +249,23 @@ impl Memory {
 
     // Interrupts functions
     // https://gbdev.io/pandocs/Interrupts.html
-    pub fn _is_interrupt_enabled(&self, interrupt: u8) -> bool {
+    pub fn is_interrupt_enabled(&self, interrupt: u8) -> bool {
         let interrupt_request_byte = self.read_byte(0xFFFF);
 
         return (interrupt_request_byte >> interrupt) & 1 == 1;
     }
 
-    pub fn _is_interrupt_requested(&self, interrupt: u8) -> bool {
+    pub fn is_interrupt_requested(&self, interrupt: u8) -> bool {
         let interrupt_request_byte = self.read_byte(0xFF0F);
 
         return (interrupt_request_byte >> interrupt) & 1 == 1;
+    }
+
+    // Timer
+    pub fn is_timer_started(&self) -> bool {
+        // 0xFF07 : 2       |   1   0
+        //          Enable  |   Clock Select
+
+        return self.read_byte(0xFF07) >> 2 & 1 == 1;
     }
 }

@@ -1,3 +1,5 @@
+use core::panic;
+
 use log::warn;
 
 use crate::{
@@ -36,6 +38,44 @@ impl Gameboy {
     pub fn step(&mut self) {
         let instr = decoding::decode_next_instruction(&self);
         self.execute_instruction(instr);
+        self.handle_interrupts();
+        self.update_timer();
+    }
+
+    fn handle_interrupts(&mut self) {
+        if !self.cpu().interrupts_enabled() {
+            return;
+        }
+
+        // interrupts are priority-based, so we need to check in order
+        // V-BLANK
+        if self.memory.is_interrupt_enabled(0) && self.memory.is_interrupt_requested(0) {
+            panic!("V-BLANK INTERRUPT REQUESTED AND ENABLED");
+        }
+        // LCD
+        else if self.memory.is_interrupt_enabled(1) && self.memory.is_interrupt_requested(1) {
+            panic!("LCD INTERRUPT REQUESTED AND ENABLED");
+        }
+        // TIMER
+        else if self.memory.is_interrupt_enabled(2) && self.memory.is_interrupt_requested(2) {
+            panic!("TIMER INTERRUPT REQUESTED AND ENABLED");
+        }
+        // SERIAL
+        else if self.memory.is_interrupt_enabled(3) && self.memory.is_interrupt_requested(3) {
+            panic!("SERIAL INTERRUPT REQUESTED AND ENABLED");
+        }
+        // JOYPAD
+        else if self.memory.is_interrupt_enabled(4) && self.memory.is_interrupt_requested(4) {
+            panic!("JOYPAD INTERRUPT REQUESTED AND ENABLED");
+        }
+    }
+
+    fn update_timer(&mut self) {
+        if !self.memory.is_timer_started() {
+            return;
+        }
+
+        panic!("TIMER STARTED");
     }
 
     // returns a 256 * 256 image (32 * 32 tiles)
