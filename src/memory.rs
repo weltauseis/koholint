@@ -135,7 +135,7 @@ impl Memory {
                     }
                     0xFF44 => {
                         // LY indicates the current horizontal line
-                        warn!("CALL TO LY BYTE READ");
+                        warn!("UNIMPLEMENTED LY BYTE READ (0xFF44)");
                     }
                     0xFF10..=0xFF26 => {
                         /* audio stuff is less important for now */
@@ -247,4 +247,18 @@ impl Memory {
 
         return ((lcd_ctrl >> bit) & 1) == 1;
     } */
+
+    // Interrupts functions
+    // https://gbdev.io/pandocs/Interrupts.html
+    pub fn _is_interrupt_enabled(&self, interrupt: u8) -> bool {
+        let interrupt_request_byte = self.read_byte(0xFFFF);
+
+        return (interrupt_request_byte >> interrupt) & 1 == 1;
+    }
+
+    pub fn _is_interrupt_requested(&self, interrupt: u8) -> bool {
+        let interrupt_request_byte = self.read_byte(0xFF0F);
+
+        return (interrupt_request_byte >> interrupt) & 1 == 1;
+    }
 }

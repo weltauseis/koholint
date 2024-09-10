@@ -46,14 +46,17 @@ fn main() {
     window.set_key_polling(true);
     //window.make_current();
 
-    let mut state = renderer::RendererState::new(&mut window, console.clone()).block_on();
+    let mut renderer = renderer::Renderer::new(&mut window, console.clone()).block_on();
 
-    while !state.window().should_close() {
+    while !renderer.window().should_close() {
+        let now = std::time::Instant::now();
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
-            state.handle_window_event(event);
+            renderer.handle_window_event(event);
         }
 
-        state.render().unwrap();
+        renderer.render().unwrap();
+
+        while now.elapsed().as_millis() < 16 {}
     }
 }

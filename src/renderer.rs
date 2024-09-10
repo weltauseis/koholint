@@ -4,7 +4,7 @@ use glfw::Window;
 
 use crate::gameboy::Gameboy;
 
-pub struct RendererState<'a> {
+pub struct Renderer<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -21,8 +21,8 @@ pub struct RendererState<'a> {
     scrolling_uniform_buffer: wgpu::Buffer,
 }
 
-impl<'a> RendererState<'a> {
-    pub async fn new(window: &'a mut Window, console: Arc<Mutex<Gameboy>>) -> RendererState<'a> {
+impl<'a> Renderer<'a> {
+    pub async fn new(window: &'a mut Window, console: Arc<Mutex<Gameboy>>) -> Renderer<'a> {
         let size = window.get_size();
 
         // The instance is a handle to our GPU

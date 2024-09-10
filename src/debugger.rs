@@ -27,9 +27,13 @@ impl Debugger {
                     let now = std::time::Instant::now();
 
                     let pc = {
+                        // acquire the console mutex
                         let mut console_locked = self.console.lock().unwrap();
+
+                        // execute instruction
                         console_locked.step();
 
+                        // return the pc to check for breakpoints
                         console_locked.cpu().read_program_counter()
                     };
 
@@ -39,7 +43,7 @@ impl Debugger {
                         break;
                     }
 
-                    while now.elapsed() < std::time::Duration::from_micros(20) {}
+                    while now.elapsed() < std::time::Duration::from_micros(50) {}
                 }
             }
 
