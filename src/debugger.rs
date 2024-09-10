@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{decoding::decode_instruction, gameboy::Gameboy};
+use crate::{
+    decoding::{decode_instruction, decode_next_instruction},
+    gameboy::Gameboy,
+};
 
 pub struct Debugger {
     console: Arc<Mutex<Gameboy>>,
@@ -69,8 +72,8 @@ impl Debugger {
         let subcommands: Vec<&str> = input.trim().split_whitespace().collect();
         match subcommands.get(0) {
             None => {
-                // step program if empty command
-                console_locked.step();
+                // Do nothing
+                println!("Empty command !");
             }
             Some(cmd) => {
                 match *cmd {
@@ -124,7 +127,7 @@ impl Debugger {
                             println!("Error : Missing register or flag name");
                             return;
                         }
-                        Some(reg_name) => match *reg_name {
+                        Some(name) => match *name {
                             "a" => println!("a : {:#04X}", console_locked.cpu().read_a_register()),
                             "b" => println!("b : {:#04X}", console_locked.cpu().read_b_register()),
                             "c" => println!("c : {:#04X}", console_locked.cpu().read_c_register()),
@@ -144,9 +147,13 @@ impl Debugger {
                             "sp" => {
                                 println!("sp : {:#06X}", console_locked.cpu().read_stack_pointer())
                             }
-                            _ => {
-                                println!("Error : Unknown register or flag ({})", reg_name);
-                            }
+                            _ => match u16::from_str_radix(&name, 16) {
+                                Ok(address) => {
+                                    let byte = console_locked.memory().read_byte(address);
+                                    println!("{address:#06X} : {byte:#04X} ({byte:08b})");
+                                }
+                                Err(e) => println!("Error : {e}"),
+                            },
                         },
                     },
                     "flags" | "f" => {
@@ -158,7 +165,9 @@ impl Debugger {
                             console_locked.cpu().read_c_flag() as u8
                         );
                     }
-                    "next" | "n" => {
+                    "step" | "s" => {
+                        let pc = console_locked.cpu().read_program_counter();
+                        println!("  {pc:#06X} | {}", decode_next_instruction(&console_locked));
                         console_locked.step();
                     }
                     "continue" | "c" => {
@@ -224,15 +233,6 @@ impl Debugger {
                         std::fs::create_dir_all("dumps").unwrap();
                         let mut file = std::fs::File::create(format!("dumps/vram.ppm")).unwrap();
                         file.write_all(ppm_string.as_bytes()).unwrap();
-                    }
-                    "tilemap" => {
-                        let tilemap = console_locked.get_tile_map();
-                        for y in 0..32 {
-                            for x in 0..32 {
-                                print!("{:03} ", tilemap[y * 32 + x]);
-                            }
-                            print!("\n");
-                        }
                     }
                     _ => {
                         println!("Error : Unknown command ({})", subcommands[0]);

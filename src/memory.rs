@@ -15,6 +15,7 @@ pub struct Memory {
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
     io: [u8; 0x80],                // FF00-FF7F | Memory-Mapped I/O
     hram: [u8; 0x7F],              // FF80-FFFE | High Ram
+    ie: u8,                        // FFFF      | Interrupt Enable Register (IE)
 }
 
 impl Memory {
@@ -51,6 +52,7 @@ impl Memory {
             switchable_wram: [0; 0x4000],
             io: [0; 0x80],
             hram: [0; 0x7F],
+            ie: 0x00,
         };
     }
 
@@ -152,6 +154,11 @@ impl Memory {
             0xFF80..0xFFFF => {
                 return self.hram[(address - 0xFF80) as usize];
             }
+            // INTERRUP ENABLE
+            0xFFFF => {
+                warn!("CALL TO INTERRUPT READ : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
+                return self.ie;
+            }
             _ => panic!("READ_BYTE : INVALID ADDRESS ({:#06X})", address),
         }
     }
@@ -233,9 +240,10 @@ impl Memory {
             0xFF80..0xFFFF => {
                 self.hram[(address - 0xFF80) as usize] = value;
             }
-            // INTERRUP
+            // INTERRUP ENABLE
             0xFFFF => {
-                warn!("CALL TO UNIMPLEMENTED INTERRUPT WRITE")
+                warn!("CALL TO INTERRUPT WRITE : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
+                self.ie = value;
             }
             _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
         }
