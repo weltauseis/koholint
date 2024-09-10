@@ -59,6 +59,8 @@ pub enum Operation {
 pub struct Instruction {
     pub op: Operation,
     pub size: u16,
+    pub cycles: u64,
+    pub branch_cycles: Option<u64>, // some instructions (jumps) have different cycles whether they branch or not
 }
 
 pub fn decode_next_instruction(console: &Gameboy) -> Instruction {
@@ -78,7 +80,12 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
 
     match instr {
         0x00 => {
-            return Instruction { op: NOP, size: 1 };
+            return Instruction {
+                op: NOP,
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            };
         }
         0x01 => {
             // ld bc, imm16
@@ -88,6 +95,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM16(imm16),
                 },
                 size: 3,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0x03 => {
@@ -95,6 +104,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R16_BC },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x04 => {
@@ -102,6 +113,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R8_B },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x05 => {
@@ -109,6 +122,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: DEC { x: R8_B },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x06 => {
@@ -119,6 +134,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x0C => {
@@ -126,6 +143,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R8_C },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x0D => {
@@ -133,6 +152,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: DEC { x: R8_C },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x0E => {
@@ -143,6 +164,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x11 => {
@@ -153,6 +176,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM16(imm16),
                 },
                 size: 3,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0x13 => {
@@ -160,6 +185,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R16_DE },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x15 => {
@@ -167,6 +194,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: DEC { x: R8_D },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x16 => {
@@ -177,11 +206,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x17 => {
             // rla
-            return Instruction { op: RLA, size: 1 };
+            return Instruction {
+                op: RLA,
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            };
         }
         0x18 => {
             // jr imm8
@@ -192,6 +228,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                         .read_byte(address + 1)])),
                 },
                 size: 2,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0x1A => {
@@ -202,6 +240,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: PTR(Box::new(R16_DE)),
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x1D => {
@@ -209,6 +249,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: DEC { x: R8_E },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x1E => {
@@ -219,6 +261,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x20 => {
@@ -232,6 +276,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                         .read_byte(address + 1)])),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: Some(12),
             };
         }
         0x21 => {
@@ -242,6 +288,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM16(imm16),
                 },
                 size: 3,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0x22 => {
@@ -252,6 +300,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x23 => {
@@ -259,6 +309,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R16_HL },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x24 => {
@@ -266,6 +318,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R8_H },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x28 => {
@@ -278,6 +332,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                         .read_byte(address + 1)])),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: Some(12),
             };
         }
         0x2E => {
@@ -288,6 +344,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x31 => {
@@ -298,6 +356,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM16(imm16),
                 },
                 size: 3,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0x32 => {
@@ -308,6 +368,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0x33 => {
@@ -315,6 +377,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: INC { x: R16_SP },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x3D => {
@@ -322,6 +386,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: DEC { x: R8_A },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x3E => {
@@ -332,6 +398,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x4F => {
@@ -342,6 +410,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x57 => {
@@ -352,6 +422,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x67 => {
@@ -362,6 +434,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x77 => {
@@ -372,6 +446,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x78 => {
@@ -382,6 +458,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_B,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x7B => {
@@ -392,6 +470,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_E,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x7C => {
@@ -402,6 +482,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_H,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x7D => {
@@ -412,6 +494,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_L,
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0x86 => {
@@ -421,6 +505,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     y: PTR(Box::new(R16_HL)),
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0x90 => {
@@ -428,6 +514,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: SUB { y: R8_B },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xA8 => {
@@ -435,6 +523,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_B },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xA9 => {
@@ -442,6 +532,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_C },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xAA => {
@@ -449,6 +541,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_D },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xAB => {
@@ -456,6 +550,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_E },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xAC => {
@@ -463,6 +559,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_H },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xAD => {
@@ -470,6 +568,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_L },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xAE => {
@@ -479,6 +579,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     y: PTR(Box::new(R16_HL)),
                 },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xAF => {
@@ -486,6 +588,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: XOR { y: R8_A },
                 size: 1,
+                cycles: 4,
+                branch_cycles: None,
             };
         }
         0xBE => {
@@ -495,6 +599,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     y: PTR(Box::new(R16_HL)),
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0xC1 => {
@@ -502,6 +608,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: POP { reg: R16_BC },
                 size: 1,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0xC3 => {
@@ -509,6 +617,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: JP { addr: IMM16(imm16) },
                 size: 3,
+                cycles: 16,
+                branch_cycles: None,
             };
         }
         0xC5 => {
@@ -516,11 +626,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: PUSH { reg: R16_BC },
                 size: 1,
+                cycles: 16,
+                branch_cycles: None,
             };
         }
         0xC9 => {
             // ret
-            return Instruction { op: RET, size: 1 };
+            return Instruction {
+                op: RET,
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            };
         }
         0xCB => {
             //prefixed bit manipulation instructions
@@ -530,6 +647,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     return Instruction {
                         op: RL { x: R8_C },
                         size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
                     };
                 }
                 0x7C => {
@@ -537,6 +656,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     return Instruction {
                         op: BIT { bit: 7, src: R8_H },
                         size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
                     };
                 }
                 _ => panic!(
@@ -550,6 +671,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
             return Instruction {
                 op: CALL { proc: IMM16(imm16) },
                 size: 3,
+                cycles: 24,
+                branch_cycles: None,
             };
         }
         0xE0 => {
@@ -560,6 +683,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 2,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0xE2 => {
@@ -570,6 +695,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
         0xEA => {
@@ -580,6 +707,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: R8_A,
                 },
                 size: 3,
+                cycles: 16,
+                branch_cycles: None,
             };
         }
         0xF0 => {
@@ -590,17 +719,26 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                     src: PTR(Box::new(IMM8(imm8))),
                 },
                 size: 2,
+                cycles: 12,
+                branch_cycles: None,
             };
         }
         0xF3 => {
             // di
-            return Instruction { op: DI, size: 1 };
+            return Instruction {
+                op: DI,
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            };
         }
         0xFE => {
             // cp imm8
             return Instruction {
                 op: CP { y: IMM8(imm8) },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
             };
         }
 

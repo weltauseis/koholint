@@ -11,6 +11,7 @@ use crate::{
 pub struct Gameboy {
     cpu: CPU,
     memory: Memory,
+    div_cycles: u64, // keeps track of cycles elapsed to update the DIV  byte register
 }
 
 impl Gameboy {
@@ -21,6 +22,7 @@ impl Gameboy {
         return Gameboy {
             cpu: CPU::blank(),
             memory: mem,
+            div_cycles: 0,
         };
     }
 
@@ -71,11 +73,19 @@ impl Gameboy {
     }
 
     fn update_timer(&mut self) {
-        if !self.memory.is_timer_started() {
-            return;
+        // TIMA counter
+        if self.memory.is_timer_started() {
+            panic!("TIMER STARTED");
         }
 
-        panic!("TIMER STARTED");
+        // DIV register
+        if self.div_cycles >= 256 {
+            self.div_cycles -= 256;
+
+            let div = self.memory.read_byte(0xFF04);
+
+            self.memory.write_byte(0xFF04, div.wrapping_add(1));
+        }
     }
 
     // returns a 256 * 256 image (32 * 32 tiles)
@@ -196,6 +206,9 @@ impl Gameboy {
         // are relative to the end of the jr instructionss
 
         self.cpu.increment_program_counter(instr.size);
+
+        // update timing
+        self.div_cycles += instr.cycles;
 
         #[allow(unreachable_patterns)]
         match instr.op {
@@ -780,7 +793,10 @@ impl Gameboy {
                         _ => panic!("(CRITICAL) JR_CC : ILLEGAL OFFSET {offset_oprd} at {pc:#06X}"),
                     };
 
+                    let extra_cycles = instr.branch_cycles.unwrap() - instr.cycles;
+
                     self.cpu.offset_program_counter(offset);
+                    self.div_cycles += extra_cycles;
                 }
             }
             Operation::JP { addr } => {

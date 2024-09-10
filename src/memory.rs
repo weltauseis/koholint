@@ -128,10 +128,11 @@ impl Memory {
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
-                // filtering the adress for logging purposes
+                // filtering the adress to warn for unimplemented things
                 match address {
                     0xFF42..=0xFF43 => { /* screen scrolling bytes,it's fine to access */ }
                     0xFF07 => { /* timer info byte, fine too */ }
+                    0xFF04 => { /* divider register byte, fine too */ }
                     0xFF44 => {
                         // LY indicates the current horizontal line
                         warn!("UNIMPLEMENTED LY BYTE READ (0xFF44)");
@@ -200,10 +201,18 @@ impl Memory {
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
-                // filtering the adress for logging purposes
+                // filtering the adress to warn for unimplemented things
+                // this is meant to be deleted in the future
                 match address {
                     0xFF42..=0xFF43 => {
                         /* those are the scrolling bytes, so it's fine to write to them */
+                    }
+                    0xFF04 => { /* divider register byte, fine too */ }
+                    0xFF50 => {
+                        /* this byte is used to disable the boot rom mapping */
+                        if value != 0 {
+                            info!("BOOT ROM UNMAPPED");
+                        }
                     }
                     0xFF10..=0xFF26 => {
                         /* audio stuff is less important for now */
@@ -213,7 +222,12 @@ impl Memory {
                         warn!("CALL TO IO MEMORY WRITE (ADDRESS {:#06X})", address);
                     }
                 }
-                self.io[(address - 0xFF00) as usize] = value;
+
+                // filtering the adress bc writing to that adress range is a bit less straightforward
+                self.io[(address - 0xFF00) as usize] = match address {
+                    0xFF04 => 0x00, // writing any value to the div register resets it to $00
+                    _ => value,
+                };
             }
             // HRAM
             0xFF80..0xFFFF => {
