@@ -10,8 +10,9 @@ pub struct CPU {
     e: u8,
     h: u8, // HL
     l: u8,
-    sp: u16, // stack pointer
-    pc: u16, // program counter
+    sp: u16,   // stack pointer
+    pc: u16,   // program counter
+    ime: bool, // interrupt flag
 }
 
 enum Flags {
@@ -35,6 +36,7 @@ impl CPU {
             l: 0,
             sp: 0,
             pc: 0,
+            ime: false,
         };
     }
 
@@ -259,5 +261,17 @@ impl CPU {
             Operand::CC_Z => self.read_z_flag(),
             _ => panic!("GET_CC : INVALID CONDITION ({:?})", cc),
         }
+    }
+
+    pub fn interrupts_enabled(&self) -> bool {
+        return self.ime;
+    }
+
+    pub fn enable_interrupts(&mut self) {
+        self.ime = true;
+    }
+
+    pub fn disable_interrupts(&mut self) {
+        self.ime = false;
     }
 }

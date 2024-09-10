@@ -157,6 +157,7 @@ impl Gameboy {
 
         self.cpu.increment_program_counter(instr.size);
 
+        #[allow(unreachable_patterns)]
         match instr.op {
             Operation::NOP => {
                 // nothing to do
@@ -815,7 +816,8 @@ impl Gameboy {
                 self.cpu.write_c_flag(a < other);
             }
             Operation::DI => {
-                warn!("UNHANDLED DI INSTRUCTION");
+                self.cpu.disable_interrupts();
+                warn!("DI : INTERRUPTS NOT YET IMPLEMENTED");
             }
             _ => panic!(
                 "EXECUTION : UNHANDLED INSTRUCTION ({instr}) at PC {:#06X}",

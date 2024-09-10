@@ -128,12 +128,22 @@ impl Memory {
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
-                if (address != 0xff42) && (address != 0xff43) {
-                    // reading of scrolling registers is okay
-                    warn!(
-                        "CALL TO UNIMPLEMENTED IO MEMORY READ (ADDRESS {:#06X})",
-                        address
-                    );
+                // filtering the adress for logging purposes
+                match address {
+                    0xFF42..=0xFF43 => {
+                        /* those are the scrolling bytes, so it's fine to access */
+                    }
+                    0xFF44 => {
+                        // LY indicates the current horizontal line
+                        warn!("CALL TO LY BYTE READ");
+                    }
+                    0xFF10..=0xFF26 => {
+                        /* audio stuff is less important for now */
+                        info!("CALL TO AUDIO MEMORY READ (ADDRESS {:#06X})", address);
+                    }
+                    _ => {
+                        warn!("CALL TO IO MEMORY READ (ADDRESS {:#06X})", address);
+                    }
                 }
 
                 return self.io[(address - 0xFF00) as usize];
@@ -191,7 +201,19 @@ impl Memory {
             }
             // MEMORY IO
             0xFF00..0xFF80 => {
-                warn!("CALL TO IO MEMORY WRITE (ADDRESS {:#06X})", address);
+                // filtering the adress for logging purposes
+                match address {
+                    0xFF42..=0xFF43 => {
+                        /* those are the scrolling bytes, so it's fine to write to them */
+                    }
+                    0xFF10..=0xFF26 => {
+                        /* audio stuff is less important for now */
+                        info!("CALL TO AUDIO MEMORY WRITE (ADDRESS {:#06X})", address);
+                    }
+                    _ => {
+                        warn!("CALL TO IO MEMORY WRITE (ADDRESS {:#06X})", address);
+                    }
+                }
                 self.io[(address - 0xFF00) as usize] = value;
             }
             // HRAM
@@ -220,9 +242,9 @@ impl Memory {
     }
 
     // LCD control byte flags
-    pub fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
+    /* pub fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
         let lcd_ctrl = self.read_byte(0xFF40);
 
         return ((lcd_ctrl >> bit) & 1) == 1;
-    }
+    } */
 }
