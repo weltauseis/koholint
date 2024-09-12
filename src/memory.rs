@@ -186,7 +186,7 @@ impl Memory {
                     0xFF04 => { /* divider register byte, fine too */ }
                     0xFF44 => {
                         // LY indicates the current horizontal line
-                        warn!("UNIMPLEMENTED LY BYTE READ (0xFF44)");
+                        //warn!("UNIMPLEMENTED LY BYTE READ (0xFF44)");
                     }
                     0xFF10..=0xFF26 => {
                         /* audio stuff is less important for now */
@@ -264,6 +264,7 @@ impl Memory {
                         /* those are the scrolling bytes, so it's fine to write to them */
                     }
                     0xFF04 => { /* divider register byte, fine too */ }
+                    0xFF44 => { /* ly register */ }
                     0xFF50 => {
                         /* this byte is used to disable the boot rom mapping */
                         if value != 0 {

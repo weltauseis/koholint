@@ -11,7 +11,9 @@ use crate::{
 pub struct Gameboy {
     cpu: CPU,
     memory: Memory,
-    div_cycles: u64, // keeps track of cycles elapsed to update the DIV  byte register
+    // keeps track of cycles elapsed to update various registers
+    div_cycles: u64, // DIV byte register
+    ly_cycles: u64,  // LINE Y byte register
 }
 
 impl Gameboy {
@@ -23,6 +25,7 @@ impl Gameboy {
             cpu: CPU::blank(),
             memory: mem,
             div_cycles: 0,
+            ly_cycles: 0,
         };
     }
 
@@ -37,11 +40,13 @@ impl Gameboy {
 
     // functions
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> u64 {
         let instr = decoding::decode_next_instruction(&self);
-        self.execute_instruction(instr);
+        let cycles = self.execute_instruction(instr);
         self.handle_interrupts();
-        self.update_timer();
+        self.update_timers();
+
+        return cycles;
     }
 
     fn handle_interrupts(&mut self) {
@@ -72,7 +77,7 @@ impl Gameboy {
         }
     }
 
-    fn update_timer(&mut self) {
+    fn update_timers(&mut self) {
         // TIMA counter
         if self.memory.is_timer_started() {
             panic!("TIMER STARTED");
@@ -85,6 +90,14 @@ impl Gameboy {
             let div = self.memory.read_byte(0xFF04);
 
             self.memory.write_byte(0xFF04, div.wrapping_add(1));
+        }
+
+        // LY register
+        if self.ly_cycles >= (80 + 172 + 204) {
+            self.ly_cycles -= 80 + 172 + 204;
+
+            let ly = self.memory.read_byte(0xFF44);
+            self.memory.write_byte(0xFF44, (ly + 1) % 154);
         }
     }
 
@@ -195,7 +208,7 @@ impl Gameboy {
         return [x as u32, y as u32];
     }
 
-    fn execute_instruction(&mut self, instr: Instruction) {
+    fn execute_instruction(&mut self, instr: Instruction) -> u64 {
         use Operand::*;
 
         // store instruction pc for crash messages
@@ -207,8 +220,8 @@ impl Gameboy {
 
         self.cpu.increment_program_counter(instr.size);
 
-        // update timing
-        self.div_cycles += instr.cycles;
+        // keep track of timing
+        let mut cycles = instr.cycles;
 
         #[allow(unreachable_patterns)]
         match instr.op {
@@ -796,7 +809,7 @@ impl Gameboy {
                     let extra_cycles = instr.branch_cycles.unwrap() - instr.cycles;
 
                     self.cpu.offset_program_counter(offset);
-                    self.div_cycles += extra_cycles;
+                    cycles += extra_cycles;
                 }
             }
             Operation::JP { addr } => {
@@ -880,6 +893,12 @@ impl Gameboy {
                 self.cpu.read_program_counter()
             ),
         }
+
+        // update timing infos
+        self.div_cycles += cycles;
+        self.ly_cycles += cycles;
+
+        return cycles;
     }
     // utilities common to multiple opcodes
 

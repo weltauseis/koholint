@@ -14,7 +14,6 @@ pub struct Renderer<'a> {
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     window: &'a mut Window,
-    console: Arc<Mutex<Gameboy>>,
     render_pipeline: wgpu::RenderPipeline,
     tile_map: wgpu::Texture,
     tile_map_bind_group: wgpu::BindGroup,
@@ -22,7 +21,7 @@ pub struct Renderer<'a> {
 }
 
 impl<'a> Renderer<'a> {
-    pub async fn new(window: &'a mut Window, console: Arc<Mutex<Gameboy>>) -> Renderer<'a> {
+    pub async fn new(window: &'a mut Window) -> Renderer<'a> {
         let size = window.get_size();
 
         // The instance is a handle to our GPU
@@ -225,7 +224,6 @@ impl<'a> Renderer<'a> {
             size,
             render_pipeline,
             tile_map,
-            console,
             tile_map_bind_group,
             scrolling_uniform_buffer,
         }
@@ -235,9 +233,8 @@ impl<'a> Renderer<'a> {
         todo!()
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, console: &Gameboy) -> Result<(), wgpu::SurfaceError> {
         {
-            let console = self.console.lock().expect("Debugger may have crashed ");
             self.queue.write_texture(
                 wgpu::ImageCopyTexture {
                     texture: &self.tile_map,
