@@ -48,8 +48,10 @@ fn main() {
 
     let mut renderer = renderer::Renderer::new(&mut window, console.clone()).block_on();
 
+    let mut fps_start = std::time::Instant::now();
+    let mut frames = 0;
     while !renderer.window().should_close() {
-        let now = std::time::Instant::now();
+        let frame_start = std::time::Instant::now();
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             renderer.handle_window_event(event);
@@ -60,7 +62,14 @@ fn main() {
         // for good accuracy, the frame needs to be drawn line-by-line
         // i might have to revert to singlethreaded for that
         renderer.render().unwrap();
+        frames += 1;
+        if fps_start.elapsed().as_millis() >= 1000 {
+            println!("FPS : {frames}");
 
-        while now.elapsed().as_millis() < 16 {}
+            frames = 0;
+            fps_start = std::time::Instant::now();
+        }
+
+        while frame_start.elapsed().as_millis() < 16 {}
     }
 }
