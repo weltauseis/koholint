@@ -55,6 +55,10 @@ fn main() {
             renderer.handle_window_event(event);
         }
 
+        // FIXME : rendering one big frame at 60hz is not accurate enough :
+        // many games modify stuff mid-frame to create effects
+        // for good accuracy, the frame needs to be drawn line-by-line
+        // i might have to revert to singlethreaded for that
         renderer.render().unwrap();
 
         while now.elapsed().as_millis() < 16 {}

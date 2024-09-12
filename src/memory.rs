@@ -8,7 +8,8 @@ use log::{info, trace, warn};
 
 pub struct Memory {
     boot_rom: [u8; 0x100],         // 0000-00FF | Boot ROM (mapped only during boot)
-    rom_bank: [u8; 0x8000],        // 0000-7FFF | 32 KiB ROM bank, no MBC support for now
+    rom_bank: [u8; 0x4000],        // 0000-3FFF | 16 KiB fixed ROM bank
+    rom_switch: Vec<[u8; 0x4000]>, // 4000-7FFF | 16 KiB switchable ROM bank
     vram: [u8; 0x2000],            // 8000-9FFF | 8KiB Video Ram
     ext_ram: [u8; 0x2000],         // A000-BFFF | 8 KiB External RAM (cartridge)
     wram: [u8; 0x4000],            // C000-CFFF | 4 KiB Work RAM
@@ -16,6 +17,8 @@ pub struct Memory {
     io: [u8; 0x80],                // FF00-FF7F | Memory-Mapped I/O
     hram: [u8; 0x7F],              // FF80-FFFE | High Ram
     ie: u8,                        // FFFF      | Interrupt Enable Register (IE)
+    // ---------------
+    mbc: MBC,
 }
 
 impl Memory {
@@ -45,7 +48,8 @@ impl Memory {
                 0x34, 0x20, 0xf5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xfb, 0x86, 0x20, 0xfe,
                 0x3e, 0x01, 0xe0, 0x50,
             ],
-            rom_bank: [0; 0x8000],
+            rom_bank: [0; 0x4000],
+            rom_switch: vec![[0; 0x4000]],
             vram: [0; 0x2000],
             ext_ram: [0; 0x2000],
             wram: [0; 0x4000],
@@ -53,48 +57,12 @@ impl Memory {
             io: [0; 0x80],
             hram: [0; 0x7F],
             ie: 0x00,
+            mbc: MBC::NONE,
         };
     }
 
     pub fn load_rom(&mut self, rom: Vec<u8>) {
-        if rom.len() < 0x0148 {
-            panic!("ROM is too small !");
-        }
-
-        // check the cartridge type byte
-        let mbc_byte = rom[0x0147];
-        info!(
-            "CARTRIDGE TYPE : {}",
-            match mbc_byte {
-                0x00 => "ROM ONLY",
-                0x01 => "MBC1",
-                0x02 => "MBC1+RAM",
-                0x03 => "MBC1+RAM+BATTERY",
-                0x05 => "MBC2",
-                0x06 => "MBC2+BATTERY",
-                0x08 => "ROM+RAM",
-                0x09 => "ROM+RAM+BATTERY",
-                0x0B => "MMM01",
-                0x0C => "MMM01+RAM",
-                0x0D => "MMM01+RAM+BATTERY",
-                0x0F => "MBC3+TIMER+BATTERY",
-                0x10 => "MBC3+TIMER+RAM+BATTERY",
-                0x11 => "MBC3",
-                0x12 => "MBC3+RAM",
-                0x13 => "MBC3+RAM+BATTERY",
-                0x19 => "MBC5",
-                0x1A => "MBC5+RAM",
-                0x1B => "MBC5+RAM+BATTERY",
-                0x1C => "MBC5+RUMBLE",
-                0x1D => "MBC5+RUMBLE+RAM",
-                0x1E => "MBC5+RUMBLE+RAM+BATTERY",
-                0xFC => "POCKET CAMERA",
-                0xFD => "BANDAI TAMA5",
-                0xFE => "HuC3",
-                0xFF => "HuC1+RAM+BATTERY",
-                _ => "UNKNOWN",
-            }
-        );
+        assert!(rom.len() >= 0x4000, "ROM is too small !");
 
         info!(
             "CARTRIDGE TITLE : {}",
@@ -102,15 +70,83 @@ impl Memory {
                 .expect("TITLE field in cartdrige header is not ASCII : your rom may be corrupted")
         );
 
-        if mbc_byte != 0x00 {
-            panic!("ROMS using a MEMORY BANK CONTROLLER are not yet supported !");
-        }
+        // check the cartridge memory bank controller byte
+        let mbc_byte = rom[0x0147];
+        match mbc_byte {
+            0x00 => {
+                info!("CARTRIDGE TYPE : ROM ONLY");
+                assert!(
+                    rom.len() <= 0x8000,
+                    "ROM size too big for its MBC type : the ROM file may be corrupted."
+                );
 
-        if rom.len() > self.rom_bank.len() {
-            panic!("ROM is too big ! {} < {}", rom.len(), self.rom_bank.len());
-        }
+                // simply map the rom to the two banks
+                self.rom_bank.copy_from_slice(&rom[0..0x4000]);
+                if rom.len() > 0x4000 {
+                    self.rom_switch[0][..(rom.len() - 0x4000)].copy_from_slice(&rom[0x4000..]);
+                }
+            }
+            0x01 => {
+                info!("CARTRIDGE TYPE : MBC1");
+                self.mbc = MBC::MBC1;
 
-        self.rom_bank[..rom.len()].copy_from_slice(&rom);
+                // map the fixed rom bank,
+                // then the switchable banks until all the rom has been mapped
+                self.rom_bank[..].copy_from_slice(&rom[0..0x4000]);
+                let mut switchable_banks: Vec<[u8; 0x4000]> = Vec::new();
+                let mut mapped = 0x4000;
+                while mapped < rom.len() {
+                    let mut bank = [0; 0x4000];
+                    let to_copy: usize = 0x4000.min(rom.len() - mapped);
+                    bank[0..to_copy].copy_from_slice(&rom[mapped..(mapped + to_copy)]);
+                    switchable_banks.push(bank);
+
+                    mapped += 0x4000;
+                }
+
+                self.rom_switch = switchable_banks;
+
+                info!(
+                    "MBC1 : {} ROM BANKS (TOTAL SIZE : {}KiB)",
+                    1 + self.rom_switch.len(),
+                    rom.len() / 0x400,
+                );
+            }
+            _ => {
+                panic!(
+                    "ROMS using this MEMORY BANK CONTROLLER are not yet supported : {}",
+                    match mbc_byte {
+                        0x00 => "ROM ONLY",
+                        0x01 => "MBC1",
+                        0x02 => "MBC1+RAM",
+                        0x03 => "MBC1+RAM+BATTERY",
+                        0x05 => "MBC2",
+                        0x06 => "MBC2+BATTERY",
+                        0x08 => "ROM+RAM",
+                        0x09 => "ROM+RAM+BATTERY",
+                        0x0B => "MMM01",
+                        0x0C => "MMM01+RAM",
+                        0x0D => "MMM01+RAM+BATTERY",
+                        0x0F => "MBC3+TIMER+BATTERY",
+                        0x10 => "MBC3+TIMER+RAM+BATTERY",
+                        0x11 => "MBC3",
+                        0x12 => "MBC3+RAM",
+                        0x13 => "MBC3+RAM+BATTERY",
+                        0x19 => "MBC5",
+                        0x1A => "MBC5+RAM",
+                        0x1B => "MBC5+RAM+BATTERY",
+                        0x1C => "MBC5+RUMBLE",
+                        0x1D => "MBC5+RUMBLE+RAM",
+                        0x1E => "MBC5+RUMBLE+RAM+BATTERY",
+                        0xFC => "POCKET CAMERA",
+                        0xFD => "BANDAI TAMA5",
+                        0xFE => "HuC3",
+                        0xFF => "HuC1+RAM+BATTERY",
+                        _ => "UNKNOWN",
+                    }
+                );
+            }
+        }
 
         //FIXME : until display is implemented, pretend we are always in V-Blank
         // value at 0xFF44 is used to determine vertical-blank period
@@ -121,7 +157,7 @@ impl Memory {
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             // ROM / BOOT ROM
-            0x0000..0x8000 => {
+            0x0000..0x4000 => {
                 // the bootrom stays mapped onto 0x00-0xFF until 0x01 is written to 0xFF50
                 // then cartridge data is accessible
                 if (self.io[(0xFF50 - 0xFF00) as usize] == 0) && (address <= 0xFF) {
@@ -130,6 +166,13 @@ impl Memory {
                     return self.rom_bank[address as usize];
                 }
             }
+            // SECOND ROM BANK
+            0x4000..0x8000 => match self.mbc {
+                MBC::NONE => self.rom_switch[0][(address - 0x4000) as usize],
+                _ => {
+                    todo!()
+                }
+            },
             // VRAM
             0x8000..0xA000 => {
                 return self.vram[(address - 0x8000) as usize];
@@ -296,4 +339,9 @@ impl Memory {
 
         return self.read_byte(0xFF07) >> 2 & 1 == 1;
     }
+}
+
+enum MBC {
+    NONE,
+    MBC1,
 }
