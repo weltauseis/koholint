@@ -1,6 +1,7 @@
 use core::panic;
 
 use log::warn;
+use wgpu::hal::BindGroupLayoutDescriptor;
 
 use crate::{
     cpu::CPU,
@@ -44,7 +45,7 @@ impl Gameboy {
         let instr = decoding::decode_next_instruction(&self);
         let cycles = self.execute_instruction(instr);
         self.handle_interrupts();
-        self.update_timers();
+        self.update_misc();
 
         return cycles;
     }
@@ -77,7 +78,7 @@ impl Gameboy {
         }
     }
 
-    fn update_timers(&mut self) {
+    fn update_misc(&mut self) {
         // TIMA counter
         if self.memory.is_timer_started() {
             panic!("TIMER STARTED");
@@ -98,6 +99,15 @@ impl Gameboy {
 
             let ly = self.memory.read_byte(0xFF44);
             self.memory.write_byte(0xFF44, (ly + 1) % 154);
+        }
+
+        // LY - LYC compare : https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
+        let ly = self.memory.read_byte(0xFF44);
+        let lyc = self.memory.read_byte(0xFF45);
+
+        if ly == lyc {
+            self.memory.read_only_lcd_stat_update(0b10);
+            // FIXME : update the PPU mode too : https://gbdev.io/pandocs/STAT.html#ff41--stat-lcd-status
         }
     }
 

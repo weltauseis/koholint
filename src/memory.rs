@@ -182,12 +182,13 @@ impl Memory {
                 // filtering the adress to warn for unimplemented things
                 match address {
                     0xFF42..=0xFF43 => { /* screen scrolling bytes,it's fine to access */ }
+                    0xFF44..=0xFF45 => {
+                        // LY indicates the current horizontal line
+                        // LYC indicates on which line an interrupt should be triggered
+                    }
                     0xFF07 => { /* timer info byte, fine too */ }
                     0xFF04 => { /* divider register byte, fine too */ }
-                    0xFF44 => {
-                        // LY indicates the current horizontal line
-                        //warn!("UNIMPLEMENTED LY BYTE READ (0xFF44)");
-                    }
+
                     0xFF10..=0xFF26 => {
                         /* audio stuff is less important for now */
                         info!("CALL TO AUDIO MEMORY READ (ADDRESS {:#06X})", address);
@@ -260,6 +261,11 @@ impl Memory {
                 // filtering the adress to warn for unimplemented things
                 // this is meant to be deleted in the future
                 match address {
+                    0xFF01..=0xFF02 => {
+                        /* serial data transfer stuff */
+                        warn!("CALL TO SERIAL MEMORY WRITE (ADDRESS {:#06X})", address);
+                    }
+                    0x41 => { /* lcd status byte, writing to it is implemented below */ }
                     0xFF42..=0xFF43 => {
                         /* those are the scrolling bytes, so it's fine to write to them */
                     }
@@ -275,15 +281,32 @@ impl Memory {
                         /* audio stuff is less important for now */
                         info!("CALL TO AUDIO MEMORY WRITE (ADDRESS {:#06X})", address);
                     }
+                    0xFF0F => {
+                        /* write to the IF register */
+                        warn!("CALL TO IF REGISTER WRITE (ADDRESS {:#06X})", address);
+                    }
                     _ => {
                         warn!("CALL TO IO MEMORY WRITE (ADDRESS {:#06X})", address);
                     }
                 }
 
                 // filtering the adress bc writing to that adress range is a bit less straightforward
-                self.io[(address - 0xFF00) as usize] = match address {
-                    0xFF04 => 0x00, // writing any value to the div register resets it to $00
-                    _ => value,
+                match address {
+                    0xFF04 => {
+                        // writing any value to the div register resets it to $00
+                        self.io[0x04] = 0x00;
+                    }
+                    0xFF41 => {
+                        // LCD STAT : the lower two bits of this byte are read-only
+                        // and should not be overwritten
+                        let stat = self.io[0x41];
+
+                        self.io[0x41] = (stat & 0b0000_0011) | (value & 0b1111_1100);
+                    }
+                    _ => {
+                        // defaut case, just write the value
+                        self.io[(address - 0xFF00) as usize] = value;
+                    }
                 };
             }
             // HRAM
@@ -310,6 +333,12 @@ impl Memory {
         let value_bytes = value.to_le_bytes();
         self.write_byte(address, value_bytes[0]);
         self.write_byte(address + 1, value_bytes[1]);
+    }
+
+    // functions to update the read-only IO registers bits
+    pub fn read_only_lcd_stat_update(&mut self, value: u8) {
+        let stat = self.io[0x41];
+        self.io[0x41] = (stat & 0b_1111_1100) | (value | 0b_0000_0011);
     }
 
     // LCD control byte flags

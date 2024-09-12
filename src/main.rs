@@ -26,6 +26,9 @@ fn main() {
     let rom = std::fs::read(&args[1]).unwrap();
     let mut console = Gameboy::new(rom);
 
+    let flag_paused = args.iter().any(|a| a.eq("-p"));
+    let mut debugger = Debugger::new(flag_paused);
+
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
@@ -54,7 +57,7 @@ fn main() {
         }
 
         while dots < DOTS_IN_FRAME {
-            dots += console.step();
+            dots += debugger.step(&mut console);
         }
         dots = 0;
 

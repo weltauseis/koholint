@@ -1,7 +1,4 @@
-use std::{
-    io::Write,
-    sync::{Arc, Mutex},
-};
+use std::io::Write;
 
 use crate::{
     decoding::{decode_instruction, decode_next_instruction},
@@ -9,51 +6,37 @@ use crate::{
 };
 
 pub struct Debugger {
-    console: Arc<Mutex<Gameboy>>,
     breakpoints: Vec<u16>,
     paused: bool,
 }
 
 impl Debugger {
-    pub fn new(console: Arc<Mutex<Gameboy>>, paused: bool) -> Self {
+    pub fn new(paused: bool) -> Self {
         return Self {
-            console,
             breakpoints: Vec::new(),
             paused,
         };
     }
 
-    pub fn run(&mut self) {
-        loop {
-            if !self.paused {
-                loop {
-                    let now = std::time::Instant::now();
+    pub fn step(&mut self, console: &mut Gameboy) -> u64 {
+        if !self.paused {
+            let cycles = console.step();
 
-                    let pc = {
-                        // acquire the console mutex
-                        let mut console_locked = self.console.lock().unwrap();
+            // pc to check for breakpoints
+            let pc = console.cpu().read_program_counter();
 
-                        console_locked.step();
-
-                        // return the pc to check for breakpoints
-                        console_locked.cpu().read_program_counter()
-                    };
-
-                    if self.breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
-                        println!("Reached breakpoint ({:#06X})", pc);
-                        self.paused = true;
-                        break;
-                    }
-
-                    while now.elapsed() < std::time::Duration::from_micros(50) {}
-                }
+            if self.breakpoints.iter().any(|breakpoint| pc == *breakpoint) {
+                println!("Reached breakpoint ({:#06X})", pc);
+                self.paused = true;
             }
 
-            self.prompt_command();
+            return cycles;
+        } else {
+            return self.prompt_command(console);
         }
     }
 
-    fn prompt_command(&mut self) {
+    fn prompt_command(&mut self, console: &mut Gameboy) -> u64 {
         // prompt
         print!("(dbg)> ");
         std::io::stdout().flush().unwrap();
@@ -64,10 +47,8 @@ impl Debugger {
 
         if input.is_empty() {
             // quit in case of EOF
-            return;
+            return 0;
         }
-
-        let mut console_locked = self.console.lock().unwrap();
 
         let subcommands: Vec<&str> = input.trim().split_whitespace().collect();
         match subcommands.get(0) {
@@ -96,21 +77,21 @@ impl Debugger {
                     }
                     "list" | "l" => {
                         // TODO: find a way to show previous instructions
-                        let pc = console_locked.cpu().read_program_counter();
+                        let pc = console.cpu().read_program_counter();
                         let mut to_list = match subcommands.get(1) {
                             None => 5,
                             Some(nb_string) => match nb_string.parse() {
                                 Ok(nb) => nb,
                                 Err(e) => {
                                     println!("Error : {e}");
-                                    return;
+                                    return 0;
                                 }
                             },
                         };
 
                         let mut pos = pc;
                         while to_list > 0 {
-                            let instr = decode_instruction(&console_locked, pos);
+                            let instr = decode_instruction(&console, pos);
                             println!(
                                 "{:>12} {:#06X} | {}",
                                 if pos == pc { "->" } else { "" },
@@ -125,31 +106,31 @@ impl Debugger {
                     "print" | "p" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing register or flag name");
-                            return;
+                            return 0;
                         }
                         Some(name) => match *name {
-                            "a" => println!("a : {:#04X}", console_locked.cpu().read_a_register()),
-                            "b" => println!("b : {:#04X}", console_locked.cpu().read_b_register()),
-                            "c" => println!("c : {:#04X}", console_locked.cpu().read_c_register()),
-                            "d" => println!("d : {:#04X}", console_locked.cpu().read_d_register()),
-                            "e" => println!("e : {:#04X}", console_locked.cpu().read_e_register()),
-                            "h" => println!("h : {:#04X}", console_locked.cpu().read_h_register()),
-                            "l" => println!("l : {:#04X}", console_locked.cpu().read_l_register()),
+                            "a" => println!("a : {:#04X}", console.cpu().read_a_register()),
+                            "b" => println!("b : {:#04X}", console.cpu().read_b_register()),
+                            "c" => println!("c : {:#04X}", console.cpu().read_c_register()),
+                            "d" => println!("d : {:#04X}", console.cpu().read_d_register()),
+                            "e" => println!("e : {:#04X}", console.cpu().read_e_register()),
+                            "h" => println!("h : {:#04X}", console.cpu().read_h_register()),
+                            "l" => println!("l : {:#04X}", console.cpu().read_l_register()),
                             "bc" => {
-                                println!("bc : {:#06X}", console_locked.cpu().read_bc_register())
+                                println!("bc : {:#06X}", console.cpu().read_bc_register())
                             }
                             "de" => {
-                                println!("de : {:#06X}", console_locked.cpu().read_de_register())
+                                println!("de : {:#06X}", console.cpu().read_de_register())
                             }
                             "hl" => {
-                                println!("hl : {:#06X}", console_locked.cpu().read_hl_register())
+                                println!("hl : {:#06X}", console.cpu().read_hl_register())
                             }
                             "sp" => {
-                                println!("sp : {:#06X}", console_locked.cpu().read_stack_pointer())
+                                println!("sp : {:#06X}", console.cpu().read_stack_pointer())
                             }
                             _ => match u16::from_str_radix(&name, 16) {
                                 Ok(address) => {
-                                    let byte = console_locked.memory().read_byte(address);
+                                    let byte = console.memory().read_byte(address);
                                     println!("{address:#06X} : {byte:#04X} ({byte:08b})");
                                 }
                                 Err(e) => println!("Error : {e}"),
@@ -159,16 +140,16 @@ impl Debugger {
                     "flags" | "f" => {
                         println!(
                             "{} {} {} {}",
-                            console_locked.cpu().read_z_flag() as u8,
-                            console_locked.cpu().read_n_flag() as u8,
-                            console_locked.cpu().read_h_flag() as u8,
-                            console_locked.cpu().read_c_flag() as u8
+                            console.cpu().read_z_flag() as u8,
+                            console.cpu().read_n_flag() as u8,
+                            console.cpu().read_h_flag() as u8,
+                            console.cpu().read_c_flag() as u8
                         );
                     }
                     "step" | "s" => {
-                        let pc = console_locked.cpu().read_program_counter();
-                        println!("  {pc:#06X} | {}", decode_next_instruction(&console_locked));
-                        console_locked.step();
+                        let pc = console.cpu().read_program_counter();
+                        println!("  {pc:#06X} | {}", decode_next_instruction(&console));
+                        return console.step();
                     }
                     "continue" | "c" => {
                         self.paused = false;
@@ -176,20 +157,20 @@ impl Debugger {
                     "break" | "b" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing breakpoint adress");
-                            return;
+                            return 0;
                         }
                         Some(address_string) => {
                             let address = match u16::from_str_radix(address_string, 16) {
                                 Ok(parsed) => parsed,
                                 Err(e) => {
                                     println!("Error : {e}");
-                                    return;
+                                    return 0;
                                 }
                             };
 
                             if self.breakpoints.contains(&address) {
                                 println!("Error : Breakpoint is already placed");
-                                return;
+                                return 0;
                             }
 
                             self.breakpoints.push(address);
@@ -198,14 +179,14 @@ impl Debugger {
                     "remove" | "r" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing breakpoint adress");
-                            return;
+                            return 0;
                         }
                         Some(address_string) => {
                             let address = match u16::from_str_radix(address_string, 16) {
                                 Ok(parsed) => parsed,
                                 Err(e) => {
                                     println!("Error : {e}");
-                                    return;
+                                    return 0;
                                 }
                             };
 
@@ -219,7 +200,7 @@ impl Debugger {
                     "dump" => {
                         let mut ppm_string = String::from("P3\n256 256\n255\n");
 
-                        let tile_atlas = console_locked.get_tile_atlas_rgba8();
+                        let tile_atlas = console.get_tile_atlas_rgba8();
 
                         for pixel in 0..(256 * 256) {
                             ppm_string.push_str(&format!(
@@ -240,6 +221,8 @@ impl Debugger {
                 }
             }
         }
+
+        return 0;
     }
 }
 
