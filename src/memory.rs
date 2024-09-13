@@ -1,5 +1,7 @@
 use log::{info, trace, warn};
 
+use crate::error::{EmulationError, EmulationErrorType};
+
 // https://gbdev.io/pandocs/Memory_Map.html
 // TODO : add support for MBC and switchable ROM banks
 // TODO : add support for switchable WRAM in gameboy color mode
@@ -214,7 +216,7 @@ impl Memory {
         }
     }
 
-    pub fn write_byte(&mut self, address: u16, value: u8) {
+    pub fn write_byte(&mut self, address: u16, value: u8) -> Result<(), EmulationError> {
         match address {
             // ROM
             0x0000..0x8000 => {
@@ -295,7 +297,10 @@ impl Memory {
                 }
 
                 _ => {
-                    todo!("io & memory mapped hw registers write ({:#06X})", address);
+                    return Err(EmulationError {
+                        ty: EmulationErrorType::UnauthorizedWrite(address),
+                        pc: 0,
+                    });
                 }
             },
             // HRAM
@@ -307,8 +312,15 @@ impl Memory {
                 warn!("CALL TO INTERRUPT WRITE : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
                 self.ie = value;
             }
-            _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#06X})", address),
+            _ => {
+                return Err(EmulationError {
+                    ty: EmulationErrorType::UnauthorizedWrite(address),
+                    pc: 0,
+                });
+            }
         }
+
+        Ok(())
     }
 
     pub fn read_word(&self, address: u16) -> u16 {

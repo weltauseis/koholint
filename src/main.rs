@@ -1,4 +1,5 @@
 use debugger::Debugger;
+use error::EmulationError;
 use gameboy::Gameboy;
 use pollster::FutureExt;
 
@@ -7,6 +8,7 @@ mod cpu;
 mod debugger;
 #[allow(dead_code)]
 mod decoding;
+mod error;
 mod gameboy;
 #[allow(non_contiguous_range_endpoints)]
 mod memory;
@@ -21,6 +23,12 @@ fn main() {
     }
     env_logger::init();
 
+    if let Err(e) = run(args) {
+        println!("Error : {e}");
+    }
+}
+
+fn run(args: Vec<String>) -> Result<(), EmulationError> {
     let rom = std::fs::read(&args[1]).unwrap();
     let mut console = Gameboy::new(rom);
 
@@ -55,7 +63,7 @@ fn main() {
         }
 
         while dots < DOTS_IN_FRAME {
-            dots += debugger.step(&mut console);
+            dots += debugger.step(&mut console)?;
         }
         dots = 0;
 
@@ -74,4 +82,5 @@ fn main() {
             fps_start = std::time::Instant::now();
         } */
     }
+    Ok(())
 }

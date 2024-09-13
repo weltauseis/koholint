@@ -2,6 +2,7 @@ use std::io::Write;
 
 use crate::{
     decoding::{decode_instruction, decode_next_instruction},
+    error::EmulationError,
     gameboy::Gameboy,
 };
 
@@ -18,9 +19,9 @@ impl Debugger {
         };
     }
 
-    pub fn step(&mut self, console: &mut Gameboy) -> u64 {
+    pub fn step(&mut self, console: &mut Gameboy) -> Result<u64, EmulationError> {
         if !self.paused {
-            let cycles = console.step();
+            let cycles = console.step()?;
 
             // pc to check for breakpoints
             let pc = console.cpu().read_program_counter();
@@ -30,13 +31,13 @@ impl Debugger {
                 self.paused = true;
             }
 
-            return cycles;
+            return Ok(cycles);
         } else {
             return self.prompt_command(console);
         }
     }
 
-    fn prompt_command(&mut self, console: &mut Gameboy) -> u64 {
+    fn prompt_command(&mut self, console: &mut Gameboy) -> Result<u64, EmulationError> {
         // prompt
         print!("(dbg)> ");
         std::io::stdout().flush().unwrap();
@@ -47,7 +48,7 @@ impl Debugger {
 
         if input.is_empty() {
             // quit in case of EOF
-            return 0;
+            return Ok(0);
         }
 
         let subcommands: Vec<&str> = input.trim().split_whitespace().collect();
@@ -84,14 +85,14 @@ impl Debugger {
                                 Ok(nb) => nb,
                                 Err(e) => {
                                     println!("Error : {e}");
-                                    return 0;
+                                    return Ok(0);
                                 }
                             },
                         };
 
                         let mut pos = pc;
                         while to_list > 0 {
-                            let instr = decode_instruction(&console, pos);
+                            let instr = decode_instruction(&console, pos)?;
                             println!(
                                 "{:>12} {:#06X} | {}",
                                 if pos == pc { "->" } else { "" },
@@ -106,7 +107,7 @@ impl Debugger {
                     "print" | "p" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing register or flag name");
-                            return 0;
+                            return Ok(0);
                         }
                         Some(name) => match *name {
                             "a" => println!("a : {:#04X}", console.cpu().read_a_register()),
@@ -148,7 +149,7 @@ impl Debugger {
                     }
                     "step" | "s" => {
                         let pc = console.cpu().read_program_counter();
-                        println!("  {pc:#06X} | {}", decode_next_instruction(&console));
+                        println!("  {pc:#06X} | {}", decode_next_instruction(&console)?);
                         return console.step();
                     }
                     "continue" | "c" => {
@@ -157,20 +158,20 @@ impl Debugger {
                     "break" | "b" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing breakpoint adress");
-                            return 0;
+                            return Ok(0);
                         }
                         Some(address_string) => {
                             let address = match u16::from_str_radix(address_string, 16) {
                                 Ok(parsed) => parsed,
                                 Err(e) => {
                                     println!("Error : {e}");
-                                    return 0;
+                                    return Ok(0);
                                 }
                             };
 
                             if self.breakpoints.contains(&address) {
                                 println!("Error : Breakpoint is already placed");
-                                return 0;
+                                return Ok(0);
                             }
 
                             self.breakpoints.push(address);
@@ -179,14 +180,14 @@ impl Debugger {
                     "remove" | "r" => match subcommands.get(1) {
                         None => {
                             println!("Error : Missing breakpoint adress");
-                            return 0;
+                            return Ok(0);
                         }
                         Some(address_string) => {
                             let address = match u16::from_str_radix(address_string, 16) {
                                 Ok(parsed) => parsed,
                                 Err(e) => {
                                     println!("Error : {e}");
-                                    return 0;
+                                    return Ok(0);
                                 }
                             };
 
@@ -222,7 +223,7 @@ impl Debugger {
             }
         }
 
-        return 0;
+        return Ok(0);
     }
 }
 

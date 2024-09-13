@@ -4,6 +4,7 @@ use log::warn;
 use crate::{
     cpu::CPU,
     decoding::{self, Instruction, Operand, Operation},
+    error::EmulationError,
     memory::Memory,
 };
 
@@ -39,13 +40,13 @@ impl Gameboy {
 
     // functions
 
-    pub fn step(&mut self) -> u64 {
-        let instr = decoding::decode_next_instruction(&self);
-        let cycles = self.execute_instruction(instr);
+    pub fn step(&mut self) -> Result<u64, EmulationError> {
+        let instr = decoding::decode_next_instruction(&self)?;
+        let cycles = self.execute_instruction(instr)?;
         self.handle_interrupts();
         self.update_misc();
 
-        return cycles;
+        return Ok(cycles);
     }
 
     fn handle_interrupts(&mut self) {
@@ -209,7 +210,7 @@ impl Gameboy {
         return [x as u32, y as u32];
     }
 
-    fn execute_instruction(&mut self, instr: Instruction) -> u64 {
+    fn execute_instruction(&mut self, instr: Instruction) -> Result<u64, EmulationError> {
         use Operand::*;
 
         // store instruction pc for crash messages
@@ -319,16 +320,16 @@ impl Gameboy {
 
                         match src {
                             // load byte from r8
-                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
-                                self.memory.write_byte(address, self.cpu.read_r8(&src));
-                            }
+                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self
+                                .memory
+                                .write_byte_with_error_pc(address, self.cpu.read_r8(&src), pc)?,
                             // load word from sp register
                             R16_SP => {
                                 self.memory.write_word(address, self.cpu.read_r16(&R16_SP));
                             }
                             // load immediate byte
                             IMM8(imm8) => {
-                                self.memory.write_byte(address, imm8);
+                                self.memory.write_byte_with_error_pc(address, imm8, pc)?;
                             }
                             _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
                         }
@@ -371,7 +372,7 @@ impl Gameboy {
                         let address = self.cpu.read_r16(&R16_HL);
                         let byte = self.memory.read_byte(address);
                         let result = byte.wrapping_add(1);
-                        self.memory.write_byte(address, result);
+                        self.memory.write_byte_with_error_pc(address, result, pc)?;
 
                         // inc flags : Z 0 H -
                         self.cpu.write_z_flag(result == 0);
@@ -407,7 +408,7 @@ impl Gameboy {
                         let address = self.cpu.read_r16(&R16_HL);
                         let byte = self.memory.read_byte(address);
                         let result = byte.wrapping_sub(1);
-                        self.memory.write_byte(address, result);
+                        self.memory.write_byte_with_error_pc(address, result, pc)?;
 
                         // dec flags : Z 1 H -
                         self.cpu.write_z_flag(result == 0);
@@ -552,7 +553,8 @@ impl Gameboy {
                             to_rotate |= previous_carry;
 
                             // write back the number
-                            self.memory.write_byte(address, to_rotate);
+                            self.memory
+                                .write_byte_with_error_pc(address, to_rotate, pc)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -601,7 +603,8 @@ impl Gameboy {
                             to_rotate |= previous_carry << 7;
 
                             // write back the number
-                            self.memory.write_byte(address, to_rotate);
+                            self.memory
+                                .write_byte_with_error_pc(address, to_rotate, pc)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -650,7 +653,8 @@ impl Gameboy {
                             to_rotate |= previous_b7;
 
                             // write back the number
-                            self.memory.write_byte(address, to_rotate);
+                            self.memory
+                                .write_byte_with_error_pc(address, to_rotate, pc)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -699,7 +703,8 @@ impl Gameboy {
                             to_rotate |= previous_b0 << 7;
 
                             // write back the number
-                            self.memory.write_byte(address, to_rotate);
+                            self.memory
+                                .write_byte_with_error_pc(address, to_rotate, pc)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -899,7 +904,7 @@ impl Gameboy {
         self.div_cycles += cycles;
         self.ly_cycles += cycles;
 
-        return cycles;
+        return Ok(cycles);
     }
     // utilities common to multiple opcodes
 
@@ -937,5 +942,19 @@ impl Gameboy {
         self.cpu.offset_stack_pointer(2);
 
         return word;
+    }
+}
+
+impl Memory {
+    fn write_byte_with_error_pc(
+        &mut self,
+        address: u16,
+        value: u8,
+        pc: u16,
+    ) -> Result<(), EmulationError> {
+        self.write_byte(address, value).map_err(|mut e| {
+            e.pc = pc;
+            e
+        })
     }
 }
