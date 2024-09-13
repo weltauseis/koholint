@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use debugger::Debugger;
 use gameboy::Gameboy;
 use pollster::FutureExt;

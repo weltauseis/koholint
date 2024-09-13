@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use glfw::Window;
 
 use crate::gameboy::Gameboy;

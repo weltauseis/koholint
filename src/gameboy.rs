@@ -1,7 +1,5 @@
 use core::panic;
-
 use log::warn;
-use wgpu::hal::BindGroupLayoutDescriptor;
 
 use crate::{
     cpu::CPU,
