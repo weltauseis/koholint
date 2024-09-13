@@ -381,6 +381,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Instruction {
                 branch_cycles: None,
             };
         }
+        0x36 => {
+            // ld (hl), imm8
+            return Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: IMM8(imm8),
+                },
+                size: 2,
+                cycles: 12,
+                branch_cycles: None,
+            };
+        }
         0x3D => {
             // dec a
             return Instruction {

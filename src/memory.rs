@@ -290,6 +290,9 @@ impl Memory {
                 0xFF47 => {
                     info!("WRITE TO PALETTE REGISTER");
                 }
+                0xFF48 | 0xFF49 => {
+                    info!("WRITE TO OBJ PALETTE REGISTER");
+                }
 
                 _ => {
                     todo!("io & memory mapped hw registers write ({:#06X})", address);
