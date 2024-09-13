@@ -85,28 +85,21 @@ impl Gameboy {
         // DIV register
         if self.div_cycles >= 256 {
             self.div_cycles -= 256;
-
-            let div = self.memory.read_byte(0xFF04);
-
-            self.memory.write_byte(0xFF04, div.wrapping_add(1));
+            self.memory.increment_div();
         }
 
         // LY register
         if self.ly_cycles >= (80 + 172 + 204) {
             self.ly_cycles -= 80 + 172 + 204;
 
-            let ly = self.memory.read_byte(0xFF44);
-            self.memory.write_byte(0xFF44, (ly + 1) % 154);
+            self.memory.increment_ly();
         }
 
         // LY - LYC compare : https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
         let ly = self.memory.read_byte(0xFF44);
         let lyc = self.memory.read_byte(0xFF45);
-
-        if ly == lyc {
-            self.memory.read_only_lcd_stat_update(0b10);
-            // FIXME : update the PPU mode too : https://gbdev.io/pandocs/STAT.html#ff41--stat-lcd-status
-        }
+        self.memory.update_lcd_stat_lcy_eq_ly(ly == lyc)
+        // FIXME : update the PPU mode too : https://gbdev.io/pandocs/STAT.html#ff41--stat-lcd-status
     }
 
     // returns a 256 * 256 image (32 * 32 tiles)

@@ -14,7 +14,7 @@ pub struct Memory {
     ext_ram: [u8; 0x2000],         // A000-BFFF | 8 KiB External RAM (cartridge)
     wram: [u8; 0x4000],            // C000-CFFF | 4 KiB Work RAM
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
-    io: [u8; 0x80],                // FF00-FF7F | Memory-Mapped I/O
+    io_hw: [u8; 0x80],             // FF00-FF7F | Memory-Mapped I/O
     hram: [u8; 0x7F],              // FF80-FFFE | High Ram
     ie: u8,                        // FFFF      | Interrupt Enable Register (IE)
     // ---------------
@@ -54,7 +54,7 @@ impl Memory {
             ext_ram: [0; 0x2000],
             wram: [0; 0x4000],
             switchable_wram: [0; 0x4000],
-            io: [0; 0x80],
+            io_hw: [0; 0x80],
             hram: [0; 0x7F],
             ie: 0x00,
             mbc: MBC::NONE,
@@ -150,7 +150,7 @@ impl Memory {
 
         //FIXME : until display is implemented, pretend we are always in V-Blank
         // value at 0xFF44 is used to determine vertical-blank period
-        self.io[0x44] = 144;
+        self.io_hw[0x44] = 144;
     }
 
     // accessors
@@ -160,7 +160,7 @@ impl Memory {
             0x0000..0x4000 => {
                 // the bootrom stays mapped onto 0x00-0xFF until 0x01 is written to 0xFF50
                 // then cartridge data is accessible
-                if (self.io[(0xFF50 - 0xFF00) as usize] == 0) && (address <= 0xFF) {
+                if (self.read_byte(0xFF50) == 0) && (address <= 0xFF) {
                     return self.boot_rom[address as usize];
                 } else {
                     return self.rom_bank[address as usize];
@@ -188,17 +188,18 @@ impl Memory {
                     }
                     0xFF07 => { /* timer info byte, fine too */ }
                     0xFF04 => { /* divider register byte, fine too */ }
+                    0xFF50 => { /* disables the boot rom when non-zero */ }
 
                     0xFF10..=0xFF26 => {
                         /* audio stuff is less important for now */
                         info!("CALL TO AUDIO MEMORY READ (ADDRESS {:#06X})", address);
                     }
                     _ => {
-                        warn!("CALL TO IO MEMORY READ (ADDRESS {:#06X})", address);
+                        info!("READ MEMORY FROM FF00-FF80 RANGE (IO & MEM-MAPPED HW REGISTERS) (ADDRESS {:#06X})", address);
                     }
                 }
 
-                return self.io[(address - 0xFF00) as usize];
+                return self.io_hw[(address - 0xFF00) as usize];
             }
             // HRAM
             0xFF80..0xFFFF => {
@@ -256,59 +257,44 @@ impl Memory {
                 self.switchable_wram[(address - 0xD000) as usize] = value;
                 //warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
             }
-            // MEMORY IO
-            0xFF00..0xFF80 => {
-                // filtering the adress to warn for unimplemented things
-                // this is meant to be deleted in the future
-                match address {
-                    0xFF01..=0xFF02 => {
-                        /* serial data transfer stuff */
-                        warn!("CALL TO SERIAL MEMORY WRITE (ADDRESS {:#06X})", address);
-                    }
-                    0x41 => { /* lcd status byte, writing to it is implemented below */ }
-                    0xFF42..=0xFF43 => {
-                        /* those are the scrolling bytes, so it's fine to write to them */
-                    }
-                    0xFF04 => { /* divider register byte, fine too */ }
-                    0xFF44 => { /* ly register */ }
-                    0xFF50 => {
-                        /* this byte is used to disable the boot rom mapping */
-                        if value != 0 {
-                            info!("BOOT ROM UNMAPPED");
-                        }
-                    }
-                    0xFF10..=0xFF26 => {
-                        /* audio stuff is less important for now */
-                        info!("CALL TO AUDIO MEMORY WRITE (ADDRESS {:#06X})", address);
-                    }
-                    0xFF0F => {
-                        /* write to the IF register */
-                        warn!("CALL TO IF REGISTER WRITE (ADDRESS {:#06X})", address);
-                    }
-                    _ => {
-                        warn!("CALL TO IO MEMORY WRITE (ADDRESS {:#06X})", address);
-                    }
+            // IO & MEMORY MAPPED HARDWARE REGISTERS
+            0xFF00..0xFF80 => match address {
+                0xFF01 => {
+                    info!("WRITE TO SERIAL DATA REGISTER");
+                }
+                0xFF02 => {
+                    info!("WRITE TO SERIAL CONTROL REGISTER");
+                }
+                0xFF04 => {
+                    // writing to the DIV register clears it
+                    self.io_hw[0x04] = 0x00;
+                }
+                0xFF10..0xFF40 => {
+                    // audio registers, not important for now
+                    info!("WRITE TO AUDIO REGISTER ({:#06X})", address);
+                }
+                0xFF41 => {
+                    // the lower 3 bits of LCD STAT are read-only
+                    // and should not be overwritten by a call to write_byte
+                    self.io_hw[0x41] = (self.io_hw[0x41] & 0b_0000_0111) | (value & 0b_1111_1000);
+                }
+                0xFF0F |            // IF 
+                0xFF40 |            // LCD CONTROL
+                0xFF42 | 0xFF43 |   // SCX & SCY
+                0xFF50              // DISABLES BOOT ROM
+                => {
+                    // those are all registers that are R/W
+                    // they act like normal registers / memory
+                    self.io_hw[(address - 0xFF00) as usize] = value;
+                }
+                0xFF47 => {
+                    info!("WRITE TO PALETTE REGISTER");
                 }
 
-                // filtering the adress bc writing to that adress range is a bit less straightforward
-                match address {
-                    0xFF04 => {
-                        // writing any value to the div register resets it to $00
-                        self.io[0x04] = 0x00;
-                    }
-                    0xFF41 => {
-                        // LCD STAT : the lower two bits of this byte are read-only
-                        // and should not be overwritten
-                        let stat = self.io[0x41];
-
-                        self.io[0x41] = (stat & 0b0000_0011) | (value & 0b1111_1100);
-                    }
-                    _ => {
-                        // defaut case, just write the value
-                        self.io[(address - 0xFF00) as usize] = value;
-                    }
-                };
-            }
+                _ => {
+                    todo!("io & memory mapped hw registers write ({:#06X})", address);
+                }
+            },
             // HRAM
             0xFF80..0xFFFF => {
                 self.hram[(address - 0xFF80) as usize] = value;
@@ -318,7 +304,7 @@ impl Memory {
                 warn!("CALL TO INTERRUPT WRITE : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
                 self.ie = value;
             }
-            _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#04X})", address),
+            _ => panic!("WRITE_BYTE : INVALID ADDRESS ({:#06X})", address),
         }
     }
 
@@ -335,10 +321,39 @@ impl Memory {
         self.write_byte(address + 1, value_bytes[1]);
     }
 
-    // functions to update the read-only IO registers bits
-    pub fn read_only_lcd_stat_update(&mut self, value: u8) {
-        let stat = self.io[0x41];
-        self.io[0x41] = (stat & 0b_1111_1100) | (value | 0b_0000_0011);
+    // functions to write to the hw registers bypassing the MMU
+
+    // the lower 3 bits of LCD STAT are read-only
+    // and they should not be overwritten by a call to write_byte
+    // however the cpu needs to have a way to update them
+    // bits 0 & 1 are the current PPU MODE
+    pub fn _update_lcd_stat_ppu_mode(&mut self, ppu_mode: u8) {
+        assert!(ppu_mode < 4, "PPU mode should be a 2-bit value (0-3) !");
+        let lcd_stat = self.io_hw[0x41];
+
+        self.io_hw[0x41] = (lcd_stat & 0b_1111_1100) | ppu_mode;
+    }
+    // bit 2 is set if LCY == LY
+    pub fn update_lcd_stat_lcy_eq_ly(&mut self, lcy_eq_ly: bool) {
+        let lcd_stat = self.io_hw[0x41];
+        self.io_hw[0x41] = if lcy_eq_ly {
+            lcd_stat | 0b_0000_1000
+        } else {
+            lcd_stat & 0b_1111_0111
+        }
+    }
+
+    // writing to the DIV register from code should set it to 0x00
+    // so this function is used to update it without clearing it
+    pub fn increment_div(&mut self) {
+        let div = self.io_hw[0x04];
+        self.io_hw[0x04] = div.wrapping_add(1);
+    }
+
+    // LCD Y is read only
+    pub fn increment_ly(&mut self) {
+        let ly = self.io_hw[0x44];
+        self.io_hw[0x44] = (ly + 1) % 154;
     }
 
     // LCD control byte flags
