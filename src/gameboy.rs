@@ -12,8 +12,9 @@ pub struct Gameboy {
     cpu: CPU,
     memory: Memory,
     // keeps track of cycles elapsed to update various registers
-    div_cycles: u64, // DIV byte register
-    ly_cycles: u64,  // LINE Y byte register
+    div_cycles: u64,  // DIV TIMER
+    ly_cycles: u64,   // LINE Y
+    tima_cycles: u64, // MAIN TIMER
 }
 
 impl Gameboy {
@@ -26,6 +27,7 @@ impl Gameboy {
             memory: mem,
             div_cycles: 0,
             ly_cycles: 0,
+            tima_cycles: 0,
         };
     }
 
@@ -42,11 +44,22 @@ impl Gameboy {
 
     pub fn step(&mut self) -> Result<u64, EmulationError> {
         let instr = decoding::decode_next_instruction(&self)?;
-        let cycles = self.execute_instruction(instr)?;
+        let pc_before = self.cpu.read_program_counter();
+
+        let cycles_elapsed = self.execute_instruction(instr).map_err(|mut e| {
+            // some errors that happen for example in memory access
+            // can't know the instruction that called them
+            // so we attach that info here
+            if e.pc.is_none() {
+                e.pc = Some(pc_before);
+            }
+            e
+        })?;
+
         self.handle_interrupts();
         self.update_misc();
 
-        return Ok(cycles);
+        return Ok(cycles_elapsed);
     }
 
     fn handle_interrupts(&mut self) {
@@ -80,7 +93,23 @@ impl Gameboy {
     fn update_misc(&mut self) {
         // TIMA counter
         if self.memory.is_timer_started() {
-            panic!("TIMER STARTED");
+            // incrementing frequency is decided by the TAC register
+            // this variable is actually more of a period than a frequency
+            let freq = match self.memory.read_byte(0xFF07) & 0b11 {
+                0b00 => 1024,
+                0b01 => 16,
+                0b10 => 64,
+                0b11 => 256,
+                _ => unreachable!(),
+            };
+
+            if self.tima_cycles >= freq {
+                // FIXME : maybe this should be a subtraction, tima behavior is weird
+                // https://github.com/Hacktix/GBEDG/blob/master/timers/index.md
+                self.tima_cycles = 0;
+
+                self.memory.increment_tima();
+            }
         }
 
         // DIV register
@@ -223,7 +252,7 @@ impl Gameboy {
         self.cpu.increment_program_counter(instr.size);
 
         // keep track of timing
-        let mut cycles = instr.cycles;
+        let mut cycles_elapsed = instr.cycles;
 
         #[allow(unreachable_patterns)]
         match instr.op {
@@ -320,16 +349,17 @@ impl Gameboy {
 
                         match src {
                             // load byte from r8
-                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self
-                                .memory
-                                .write_byte_with_error_pc(address, self.cpu.read_r8(&src), pc)?,
+                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                                self.memory.write_byte(address, self.cpu.read_r8(&src))?
+                            }
                             // load word from sp register
                             R16_SP => {
-                                self.memory.write_word(address, self.cpu.read_r16(&R16_SP));
+                                self.memory
+                                    .write_word(address, self.cpu.read_r16(&R16_SP))?;
                             }
                             // load immediate byte
                             IMM8(imm8) => {
-                                self.memory.write_byte_with_error_pc(address, imm8, pc)?;
+                                self.memory.write_byte(address, imm8)?;
                             }
                             _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
                         }
@@ -372,7 +402,7 @@ impl Gameboy {
                         let address = self.cpu.read_r16(&R16_HL);
                         let byte = self.memory.read_byte(address);
                         let result = byte.wrapping_add(1);
-                        self.memory.write_byte_with_error_pc(address, result, pc)?;
+                        self.memory.write_byte(address, result)?;
 
                         // inc flags : Z 0 H -
                         self.cpu.write_z_flag(result == 0);
@@ -408,7 +438,7 @@ impl Gameboy {
                         let address = self.cpu.read_r16(&R16_HL);
                         let byte = self.memory.read_byte(address);
                         let result = byte.wrapping_sub(1);
-                        self.memory.write_byte_with_error_pc(address, result, pc)?;
+                        self.memory.write_byte(address, result)?;
 
                         // dec flags : Z 1 H -
                         self.cpu.write_z_flag(result == 0);
@@ -553,8 +583,7 @@ impl Gameboy {
                             to_rotate |= previous_carry;
 
                             // write back the number
-                            self.memory
-                                .write_byte_with_error_pc(address, to_rotate, pc)?;
+                            self.memory.write_byte(address, to_rotate)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -603,8 +632,7 @@ impl Gameboy {
                             to_rotate |= previous_carry << 7;
 
                             // write back the number
-                            self.memory
-                                .write_byte_with_error_pc(address, to_rotate, pc)?;
+                            self.memory.write_byte(address, to_rotate)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -653,8 +681,7 @@ impl Gameboy {
                             to_rotate |= previous_b7;
 
                             // write back the number
-                            self.memory
-                                .write_byte_with_error_pc(address, to_rotate, pc)?;
+                            self.memory.write_byte(address, to_rotate)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -703,8 +730,7 @@ impl Gameboy {
                             to_rotate |= previous_b0 << 7;
 
                             // write back the number
-                            self.memory
-                                .write_byte_with_error_pc(address, to_rotate, pc)?;
+                            self.memory.write_byte(address, to_rotate)?;
 
                             // flags : z 0 0 c
                             self.cpu.write_z_flag(to_rotate == 0);
@@ -815,7 +841,7 @@ impl Gameboy {
                     let extra_cycles = instr.branch_cycles.unwrap() - instr.cycles;
 
                     self.cpu.offset_program_counter(offset);
-                    cycles += extra_cycles;
+                    cycles_elapsed += extra_cycles;
                 }
             }
             Operation::JP { addr } => {
@@ -838,7 +864,7 @@ impl Gameboy {
 
                 // push the return address to the stack
                 let current_pc = self.cpu.read_program_counter();
-                self.push_word(current_pc);
+                self.push_word(current_pc)?;
 
                 // jump to the procedure
                 self.cpu.write_program_counter(address);
@@ -857,7 +883,7 @@ impl Gameboy {
                     _ => panic!("(CRITICAL) PUSH : ILLEGAL OPERAND {reg} at {pc:#06X}"),
                 };
 
-                self.push_word(to_push);
+                self.push_word(to_push)?;
             }
 
             Operation::POP { reg } => {
@@ -901,10 +927,11 @@ impl Gameboy {
         }
 
         // update timing infos
-        self.div_cycles += cycles;
-        self.ly_cycles += cycles;
+        self.div_cycles += cycles_elapsed;
+        self.ly_cycles += cycles_elapsed;
+        self.tima_cycles += cycles_elapsed;
 
-        return Ok(cycles);
+        return Ok(cycles_elapsed);
     }
     // utilities common to multiple opcodes
 
@@ -916,12 +943,15 @@ impl Gameboy {
         self.memory.write_byte(self.cpu.read_stack_pointer(), byte);
     } */
 
-    fn push_word(&mut self, word: u16) {
+    fn push_word(&mut self, word: u16) -> Result<(), EmulationError> {
         // decrement stack pointer
         self.cpu.offset_stack_pointer(-2);
 
         // write word
-        self.memory.write_word(self.cpu.read_stack_pointer(), word);
+        self.memory
+            .write_word(self.cpu.read_stack_pointer(), word)?;
+
+        Ok(())
     }
 
     /* fn pop_byte(&mut self) -> u8 {
@@ -942,19 +972,5 @@ impl Gameboy {
         self.cpu.offset_stack_pointer(2);
 
         return word;
-    }
-}
-
-impl Memory {
-    fn write_byte_with_error_pc(
-        &mut self,
-        address: u16,
-        value: u8,
-        pc: u16,
-    ) -> Result<(), EmulationError> {
-        self.write_byte(address, value).map_err(|mut e| {
-            e.pc = pc;
-            e
-        })
     }
 }

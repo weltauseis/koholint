@@ -678,7 +678,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 _ => {
                     return Err(EmulationError {
                         ty: EmulationErrorType::UnhandledInstruction(OpCode::Ext(imm8)),
-                        pc: address,
+                        pc: Some(address),
                     });
                 }
             }
@@ -762,7 +762,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
         _ => {
             return Err(EmulationError {
                 ty: EmulationErrorType::UnhandledInstruction(OpCode::Op(instr)),
-                pc: address,
+                pc: Some(address),
             });
         }
     }

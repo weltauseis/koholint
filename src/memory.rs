@@ -220,7 +220,9 @@ impl Memory {
         match address {
             // ROM
             0x0000..0x8000 => {
-                panic!("CANNOT WRITE TO ROM BANK");
+                // writing to the rom space switches rom banks
+                // but for now we ignore it
+                warn!("WRITE TO ROM BANK ({:#06X})", address);
             }
             // VRAM
             0x8000..0xA000 => {
@@ -283,7 +285,8 @@ impl Memory {
                 0xFF0F |            // IF 
                 0xFF40 |            // LCD CONTROL
                 0xFF42 | 0xFF43 |   // SCX & SCY
-                0xFF50              // DISABLES BOOT ROM
+                0xFF50 |            // DISABLES BOOT ROM
+                0xFF05..=0xFF07     // TIMA, TMA, TAC
                 => {
                     // those are all registers that are R/W
                     // they act like normal registers / memory
@@ -299,7 +302,7 @@ impl Memory {
                 _ => {
                     return Err(EmulationError {
                         ty: EmulationErrorType::UnauthorizedWrite(address),
-                        pc: 0,
+                        pc: None,
                     });
                 }
             },
@@ -315,7 +318,7 @@ impl Memory {
             _ => {
                 return Err(EmulationError {
                     ty: EmulationErrorType::UnauthorizedWrite(address),
-                    pc: 0,
+                    pc: None,
                 });
             }
         }
@@ -330,10 +333,12 @@ impl Memory {
         return u16::from_le_bytes(bytes);
     }
 
-    pub fn write_word(&mut self, address: u16, value: u16) {
+    pub fn write_word(&mut self, address: u16, value: u16) -> Result<(), EmulationError> {
         let value_bytes = value.to_le_bytes();
-        self.write_byte(address, value_bytes[0]);
-        self.write_byte(address + 1, value_bytes[1]);
+        self.write_byte(address, value_bytes[0])?;
+        self.write_byte(address + 1, value_bytes[1])?;
+
+        Ok(())
     }
 
     // functions to write to the hw registers bypassing the MMU
@@ -363,6 +368,23 @@ impl Memory {
     pub fn increment_div(&mut self) {
         let div = self.io_hw[0x04];
         self.io_hw[0x04] = div.wrapping_add(1);
+    }
+
+    // TIMA overflow should request an interrupt
+    pub fn increment_tima(&mut self) {
+        let new_tima = self.io_hw[0x05].wrapping_add(1);
+        self.io_hw[0x05] = new_tima;
+
+        // overflow !!
+        if new_tima == 0 {
+            // TIMA is reset to the value in TMA
+            // and a timer interrupt is requested
+            self.io_hw[0x05] = self.io_hw[0x06];
+
+            // timer interrupt is bit 2
+            let interrupts = self.io_hw[0x0F];
+            self.io_hw[0x0F] = interrupts | 0b0000_0100;
+        }
     }
 
     // LCD Y is read only
