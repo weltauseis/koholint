@@ -62,6 +62,7 @@ fn run(args: Vec<String>) -> Result<(), EmulationError> {
             renderer.handle_window_event(event);
         }
 
+        let mut vblank_requested_for_this_frame = false;
         while dots < DOTS_IN_FRAME {
             dots += debugger.step(&mut console)?;
         }

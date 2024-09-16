@@ -4,7 +4,7 @@ use log::warn;
 use crate::{
     cpu::CPU,
     decoding::{self, Instruction, Operand, Operation},
-    error::EmulationError,
+    error::{EmulationError, EmulationErrorType},
     memory::Memory,
 };
 
@@ -12,9 +12,11 @@ pub struct Gameboy {
     cpu: CPU,
     memory: Memory,
     // keeps track of cycles elapsed to update various registers
-    div_cycles: u64,  // DIV TIMER
-    ly_cycles: u64,   // LINE Y
-    tima_cycles: u64, // MAIN TIMER
+    div_cycles: u64,    // DIV TIMER
+    ly_cycles: u64,     // LINE Y
+    tima_cycles: u64,   // MAIN TIMER
+    vblank_cycles: u64, // VBLANK INTERRUPT
+    vblank_already_req: bool,
 }
 
 impl Gameboy {
@@ -28,6 +30,8 @@ impl Gameboy {
             div_cycles: 0,
             ly_cycles: 0,
             tima_cycles: 0,
+            vblank_cycles: 0,
+            vblank_already_req: false,
         };
     }
 
@@ -128,8 +132,20 @@ impl Gameboy {
         // LY - LYC compare : https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
         let ly = self.memory.read_byte(0xFF44);
         let lyc = self.memory.read_byte(0xFF45);
-        self.memory.update_lcd_stat_lcy_eq_ly(ly == lyc)
+        self.memory.update_lcd_stat_lcy_eq_ly(ly == lyc);
         // FIXME : update the PPU mode too : https://gbdev.io/pandocs/STAT.html#ff41--stat-lcd-status
+
+        // VBLANK interrupt
+
+        if self.vblank_cycles > 4560 && !self.vblank_already_req {
+            self.vblank_already_req = true;
+            self.memory.request_interrupt(0);
+        }
+
+        if self.vblank_cycles > 70224 {
+            self.vblank_cycles = 0;
+            self.vblank_already_req = false;
+        }
     }
 
     // returns a 256 * 256 image (32 * 32 tiles)
@@ -976,18 +992,25 @@ impl Gameboy {
             }
             Operation::DI => {
                 self.cpu.disable_interrupts();
-                warn!("DI : INTERRUPTS NOT YET IMPLEMENTED");
+                warn!("DI : INTERRUPTS DISABLED");
             }
-            _ => panic!(
-                "EXECUTION : UNHANDLED INSTRUCTION ({instr}) at PC {:#06X}",
-                self.cpu.read_program_counter()
-            ),
+            Operation::EI => {
+                self.cpu.enable_interrupts();
+                warn!("EI : INTERRUPTS ENABLED")
+            }
+            _ => {
+                return Err(EmulationError {
+                    ty: EmulationErrorType::UnhandledInstructionExec(instr),
+                    pc: Some(pc),
+                });
+            }
         }
 
         // update timing infos
         self.div_cycles += cycles_elapsed;
         self.ly_cycles += cycles_elapsed;
         self.tima_cycles += cycles_elapsed;
+        self.vblank_cycles += cycles_elapsed;
 
         return Ok(cycles_elapsed);
     }

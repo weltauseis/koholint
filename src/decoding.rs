@@ -31,6 +31,7 @@ pub enum Operand {
 }
 
 #[allow(non_camel_case_types)]
+#[derive(Debug)]
 pub enum Operation {
     NOP,
     LD { dst: Operand, src: Operand },
@@ -58,8 +59,10 @@ pub enum Operation {
     RRCA,
     CP { y: Operand },
     DI,
+    EI,
 }
 
+#[derive(Debug)]
 pub struct Instruction {
     pub op: Operation,
     pub size: u16,
@@ -190,6 +193,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 3,
                 cycles: 12,
+                branch_cycles: None,
+            });
+        }
+        0x12 => {
+            // ld (de), a
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_DE)),
+                    src: R8_A,
+                },
+                size: 1,
+                cycles: 8,
                 branch_cycles: None,
             });
         }
@@ -774,7 +789,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 }
                 _ => {
                     return Err(EmulationError {
-                        ty: EmulationErrorType::UnhandledInstruction(OpCode::Ext(imm8)),
+                        ty: EmulationErrorType::UnhandledInstructionDecode(OpCode::Ext(imm8)),
                         pc: Some(address),
                     });
                 }
@@ -855,6 +870,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xFB => {
+            // ei
+            return Ok(Instruction {
+                op: EI,
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0xFE => {
             // cp imm8
             return Ok(Instruction {
@@ -867,7 +891,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
 
         _ => {
             return Err(EmulationError {
-                ty: EmulationErrorType::UnhandledInstruction(OpCode::Op(instr)),
+                ty: EmulationErrorType::UnhandledInstructionDecode(OpCode::Op(instr)),
                 pc: Some(address),
             });
         }
@@ -938,6 +962,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RRCA => String::from("rrca"),
         Operation::CP { y } => format!("cp {y}"),
         Operation::DI => String::from("di"),
+        Operation::EI => String::from("ei"),
     }
 }
 

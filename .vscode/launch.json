@@ -7,21 +7,21 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'gbemulator'",
+            "name": "Debug executable 'koholint-emulator'",
             "stopOnEntry": false,
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=gbemulator",
-                    "--package=gbemulator"
+                    "--bin=koholint-emulator",
+                    "--package=koholint-emulator"
                 ],
                 "filter": {
-                    "name": "gbemulator",
+                    "name": "koholint-emulator",
                     "kind": "bin"
                 }
             },
             "args": [
-                "roms/DR-MARIO.bin"
+                "roms/DR-MARIO.gb"
             ],
             "cwd": "${workspaceFolder}",
             "env": {
@@ -31,16 +31,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'gbemulator'",
+            "name": "Debug unit tests in executable 'koholint-emulator'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=gbemulator",
-                    "--package=gbemulator"
+                    "--bin=koholint-emulator",
+                    "--package=koholint-emulator"
                 ],
                 "filter": {
-                    "name": "gbemulator",
+                    "name": "koholint-emulator",
                     "kind": "bin"
                 }
             },

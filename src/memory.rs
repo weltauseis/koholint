@@ -1,4 +1,4 @@
-use log::{error, info, trace, warn};
+use log::{info, trace, warn};
 
 use crate::error::{EmulationError, EmulationErrorType};
 
@@ -181,6 +181,14 @@ impl Memory {
             0x8000..0xA000 => {
                 return self.vram[(address - 0x8000) as usize];
             }
+            // WRAM
+            0xC000..0xD000 => {
+                return self.wram[(address - 0xC000) as usize];
+            }
+            // SWITCHABLE WRAM
+            0xD000..0xE000 => {
+                return self.switchable_wram[(address - 0xD000) as usize];
+            }
             // MEMORY IO
             0xFF00..0xFF80 => {
                 // filtering the adress to warn for unimplemented things
@@ -193,11 +201,13 @@ impl Memory {
                     0xFF07 => { /* timer info byte, fine too */ }
                     0xFF04 => { /* divider register byte, fine too */ }
                     0xFF50 => { /* disables the boot rom when non-zero */ }
+                    0xFF0F => { /* interrupt request register */ }
 
                     0xFF10..=0xFF26 => {
                         /* audio stuff is less important for now */
                         info!("CALL TO AUDIO MEMORY READ (ADDRESS {:#06X})", address);
                     }
+
                     _ => {
                         info!("READ MEMORY FROM FF00-FF80 RANGE (IO & MEM-MAPPED HW REGISTERS) (ADDRESS {:#06X})", address);
                     }
@@ -211,7 +221,7 @@ impl Memory {
             }
             // INTERRUP ENABLE
             0xFFFF => {
-                warn!("CALL TO INTERRUPT READ : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
+                warn!("CALL TO INTERRUPT ENBALE READ : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
                 return self.ie;
             }
             _ => panic!("READ_BYTE : INVALID ADDRESS ({:#06X})", address),
@@ -327,7 +337,7 @@ impl Memory {
             }
             // INTERRUP ENABLE
             0xFFFF => {
-                warn!("CALL TO INTERRUPT WRITE : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
+                warn!("CALL TO INTERRUPT ENABLE WRITE : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
                 self.ie = value;
             }
             _ => {
@@ -418,15 +428,20 @@ impl Memory {
     // Interrupts functions
     // https://gbdev.io/pandocs/Interrupts.html
     pub fn is_interrupt_enabled(&self, interrupt: u8) -> bool {
-        let interrupt_request_byte = self.read_byte(0xFFFF);
+        let interrupt_enable_byte = self.read_byte(0xFFFF);
 
-        return (interrupt_request_byte >> interrupt) & 1 == 1;
+        return (interrupt_enable_byte >> interrupt) & 1 == 1;
     }
 
     pub fn is_interrupt_requested(&self, interrupt: u8) -> bool {
         let interrupt_request_byte = self.read_byte(0xFF0F);
 
         return (interrupt_request_byte >> interrupt) & 1 == 1;
+    }
+
+    pub fn request_interrupt(&mut self, interrupt: u8) {
+        let interrupt_request_byte = self.read_byte(0xFF0F);
+        self.io_hw[0x0F] = interrupt_request_byte | (1 << interrupt);
     }
 
     // Timer

@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::decoding::Instruction;
+
 #[derive(Debug)]
 pub struct EmulationError {
     pub ty: EmulationErrorType,
@@ -14,8 +16,8 @@ pub enum OpCode {
 
 #[derive(Debug)]
 pub enum EmulationErrorType {
-    UnhandledInstruction(OpCode),
-    //UnauthorizedRead(),
+    UnhandledInstructionDecode(OpCode),
+    UnhandledInstructionExec(Instruction),
     UnauthorizedWrite(u16),
 }
 
@@ -25,7 +27,7 @@ impl Display for EmulationError {
             f,
             "{} {}",
             match &self.ty {
-                EmulationErrorType::UnhandledInstruction(opcode) => match opcode {
+                EmulationErrorType::UnhandledInstructionDecode(opcode) => match opcode {
                     OpCode::Op(simple) =>
                         format!("Unhandled instruction during decoding : {:#04X}", simple),
                     OpCode::Ext(extended) => format!(
@@ -33,7 +35,8 @@ impl Display for EmulationError {
                         extended
                     ),
                 },
-                //EmulationErrorType::UnauthorizedRead() => todo!(),
+                EmulationErrorType::UnhandledInstructionExec(instr) =>
+                    format!("Unhandled instruction during execution : {}", instr),
                 EmulationErrorType::UnauthorizedWrite(address) =>
                     format!("Unauthorized write (Address : {:#06X})", address),
             },
