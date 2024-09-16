@@ -450,33 +450,70 @@ impl Gameboy {
 
                 _ => panic!("(CRITICAL) DEC : ILLEGAL OPERAND {x} at {pc:#06X}"),
             },
-            Operation::ADD_8 { y } => {
-                // add does a + y and stores the result in a
-                let a = self.cpu.read_a_register();
-                let value = match y {
-                    // subtract 8-bit register
-                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
-                    // subtract imm8
-                    IMM8(imm8) => imm8,
-                    // subtract from memory with pointer in hl
-                    PTR(ptr) => match *ptr {
-                        R16_HL => {
-                            let hl = self.cpu.read_r16(&ptr);
-                            self.memory.read_byte(hl)
-                        }
-                        _ => panic!("(CRITICAL) ADD : ILLEGAL POINTER {ptr} at {pc:#06X}"),
-                    },
-                    _ => panic!("(CRITICAL) ADD : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
-                };
+            Operation::ADD { x, y } => {
+                // add either does a + y and stores the result in a (8 bits)
+                // or HL + y (16 bits)
+                match x {
+                    Operand::R8_A => {
+                        let value = match y {
+                            // add 8-bit register
+                            R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                            // add imm8
+                            IMM8(imm8) => imm8,
+                            // add from memory with pointer in hl
+                            PTR(ptr) => match *ptr {
+                                R16_HL => {
+                                    let hl = self.cpu.read_r16(&ptr);
+                                    self.memory.read_byte(hl)
+                                }
+                                _ => panic!("(CRITICAL) ADD : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                            },
+                            _ => panic!("(CRITICAL) ADD : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                        };
 
-                let result = a.wrapping_add(value);
-                self.cpu.write_a_register(result);
+                        let a = self.cpu.read_a_register();
+                        let result = a.wrapping_add(value);
+                        self.cpu.write_a_register(result);
 
-                // flags : z 0 h c
-                self.cpu.write_z_flag(result == 0);
-                self.cpu.write_n_flag(false);
-                self.cpu.write_h_flag((a & 0xF) + (value & 0xF) > 0xF);
-                self.cpu.write_c_flag(a < value);
+                        // flags : z 0 h c
+                        self.cpu.write_z_flag(result == 0);
+                        self.cpu.write_n_flag(false);
+                        self.cpu.write_h_flag((a & 0xF) + (value & 0xF) > 0xF);
+                        self.cpu.write_c_flag(a < value);
+                    }
+                    Operand::R16_HL => {
+                        let value = match y {
+                            // add 16-bit register
+                            R16_BC | R16_DE | R16_HL | R16_SP => self.cpu.read_r16(&y),
+                            _ => panic!("(CRITICAL) ADD : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                        };
+
+                        let hl = self.cpu.read_hl_register();
+                        let result = hl.wrapping_add(value);
+                        self.cpu.write_hl_register(result);
+
+                        // flags : - 0 h c
+                        self.cpu.write_n_flag(false);
+                        self.cpu
+                            .write_h_flag((hl & 0xFFF) + (value & 0xFFF) > 0xFFF);
+                        self.cpu.write_c_flag(hl < value);
+                    }
+                    // signed SP add is also a thing apparently
+                    /* Operand::R16_SP => {
+                        let value = match y {
+                            IMM8_SIGNED(imm8) => imm8,
+                            _ => panic!("(CRITICAL) ADD : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                        };
+
+                        self.cpu.offset_stack_pointer(value);
+
+                        let sp = self.cpu.read_stack_pointer();
+                        // flags : 0 0 h c
+                        self.cpu.write_z_flag(false);
+                        self.cpu.write_n_flag(false);
+                    } */
+                    _ => panic!("(CRITICAL) ADD : ILLEGAL FIRST OPERAND {x} at {pc:#06X}"),
+                }
             }
             Operation::SUB { y } => {
                 // sub does a - y and stores the result in a

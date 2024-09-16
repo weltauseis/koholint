@@ -1,4 +1,4 @@
-use log::{info, trace, warn};
+use log::{error, info, trace, warn};
 
 use crate::error::{EmulationError, EmulationErrorType};
 
@@ -16,6 +16,7 @@ pub struct Memory {
     ext_ram: [u8; 0x2000],         // A000-BFFF | 8 KiB External RAM (cartridge)
     wram: [u8; 0x4000],            // C000-CFFF | 4 KiB Work RAM
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
+    oam: [u8; 160],                // FE00-FE9F | Object Attribute Memory
     io_hw: [u8; 0x80],             // FF00-FF7F | Memory-Mapped I/O
     hram: [u8; 0x7F],              // FF80-FFFE | High Ram
     ie: u8,                        // FFFF      | Interrupt Enable Register (IE)
@@ -56,6 +57,7 @@ impl Memory {
             ext_ram: [0; 0x2000],
             wram: [0; 0x4000],
             switchable_wram: [0; 0x4000],
+            oam: [0; 0x00A0],
             io_hw: [0; 0x80],
             hram: [0; 0x7F],
             ie: 0x00,
@@ -261,6 +263,15 @@ impl Memory {
                 self.switchable_wram[(address - 0xD000) as usize] = value;
                 //warn!("SWITCHABLE WRAM NOT YET SUPPORTED, BEHAVIOR MAY BE UNEXPECTED !");
             }
+            // OAM
+            0xFE00..0xFEA0 => {
+                warn!("WRITE TO OAM");
+                self.oam[(address - 0xFE00) as usize] = value;
+            }
+            0xFEA0..0xFF00 => {
+                // Nintendo says use of this area is prohibited.
+                warn!("WRITE TO PROHIBITED MEMORY");
+            }
             // IO & MEMORY MAPPED HARDWARE REGISTERS
             0xFF00..0xFF80 => match address {
                 0xFF01 => {
@@ -298,12 +309,16 @@ impl Memory {
                 0xFF48 | 0xFF49 => {
                     info!("WRITE TO OBJ PALETTE REGISTER");
                 }
-
+                0xFF7F => {
+                    // this register is supposed to be unused but tetris somehow writes to it
+                    // maybe a bug in my emulator
+                    warn!("WEIRD TETRIS WRITE AT 0xFF7F");
+                }
                 _ => {
-                    return Err(EmulationError {
+                    /* return Err(EmulationError {
                         ty: EmulationErrorType::UnauthorizedWrite(address),
                         pc: None,
-                    });
+                    }); */
                 }
             },
             // HRAM

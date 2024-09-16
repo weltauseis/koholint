@@ -43,7 +43,7 @@ pub enum Operation {
     POP { reg: Operand },
     DEC { x: Operand },
     INC { x: Operand },
-    ADD_8 { y: Operand },
+    ADD { x: Operand, y: Operand },
     SUB { y: Operand },
     XOR { y: Operand },
     BIT { bit: u8, src: Operand },
@@ -137,6 +137,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x0B => {
+            // dec bc
+            return Ok(Instruction {
+                op: DEC { x: R16_BC },
+                size: 1,
                 cycles: 8,
                 branch_cycles: None,
             });
@@ -339,6 +348,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: Some(12),
             });
         }
+        0x2A => {
+            // ld a, (hl+)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(R16_HLI)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x2E => {
             // ld l, imm8
             return Ok(Instruction {
@@ -516,7 +537,8 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
         0x86 => {
             // add a, (hl)
             return Ok(Instruction {
-                op: ADD_8 {
+                op: ADD {
+                    x: R8_A,
                     y: PTR(Box::new(R16_HL)),
                 },
                 size: 1,
@@ -817,7 +839,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::POP { reg: word } => format!("pop {word}"),
         Operation::DEC { x } => format!("dec {x}"),
         Operation::INC { x } => format!("inc {x}"),
-        Operation::ADD_8 { y } => format!("add a, {y}"),
+        Operation::ADD { x, y } => format!("add {x}, {y}"),
         Operation::SUB { y } => format!("sub a, {y}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),

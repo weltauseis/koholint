@@ -166,6 +166,12 @@ impl CPU {
         return u16::from_be_bytes([self.h, self.l]);
     }
 
+    pub fn write_hl_register(&mut self, value: u16) {
+        let bytes = value.to_le_bytes();
+        self.h = bytes[1];
+        self.l = bytes[0];
+    }
+
     pub fn read_program_counter(&self) -> u16 {
         return self.pc;
     }
