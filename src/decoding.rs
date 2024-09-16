@@ -64,6 +64,7 @@ pub enum Operation {
     CP { y: Operand },
     DI,
     EI,
+    CPL,
 }
 
 #[derive(Debug)]
@@ -389,6 +390,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 2,
                 cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x2F => {
+            // cpl
+            return Ok(Instruction {
+                op: CPL,
+                size: 1,
+                cycles: 4,
                 branch_cycles: None,
             });
         }
@@ -1102,6 +1112,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::CP { y } => format!("cp {y}"),
         Operation::DI => String::from("di"),
         Operation::EI => String::from("ei"),
+        Operation::CPL => String::from("cpl"),
     }
 }
 

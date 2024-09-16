@@ -1032,6 +1032,13 @@ impl Gameboy {
                 self.cpu.enable_interrupts();
                 warn!("EI : INTERRUPTS ENABLED")
             }
+            Operation::CPL => {
+                let accumulator = self.cpu.read_a_register();
+                self.cpu.write_a_register(!accumulator);
+                // flags : - 1 1 -
+                self.cpu.write_n_flag(true);
+                self.cpu.write_h_flag(true);
+            }
             _ => {
                 return Err(EmulationError {
                     ty: EmulationErrorType::UnhandledInstructionExec(instr),
