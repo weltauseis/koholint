@@ -24,6 +24,8 @@ pub enum Operand {
     R16_HLI,
     CC_NZ,
     CC_Z,
+    CC_NC,
+    CC_C,
     IMM8(u8),
     IMM8_SIGNED(i8),
     IMM16(u16),
@@ -40,6 +42,7 @@ pub enum Operation {
     JR_CC { cc: Operand, offset_oprd: Operand },
     CALL { proc: Operand },
     RET,
+    RET_CC { cc: Operand },
     PUSH { reg: Operand },
     POP { reg: Operand },
     DEC { x: Operand },
@@ -48,6 +51,7 @@ pub enum Operation {
     SUB { y: Operand },
     OR { y: Operand },
     XOR { y: Operand },
+    AND { y: Operand },
     BIT { bit: u8, src: Operand },
     RL { x: Operand },
     RR { x: Operand },
@@ -571,6 +575,80 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xA0 => {
+            // and a, b
+            return Ok(Instruction {
+                op: AND { y: R8_B },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xA1 => {
+            // and a, c
+            return Ok(Instruction {
+                op: AND { y: R8_C },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xA2 => {
+            // and a, d
+            return Ok(Instruction {
+                op: AND { y: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xA3 => {
+            // and a, e
+            return Ok(Instruction {
+                op: AND { y: R8_E },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xA4 => {
+            // and a, h
+            return Ok(Instruction {
+                op: AND { y: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xA5 => {
+            // and a, l
+            return Ok(Instruction {
+                op: AND { y: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xA6 => {
+            // and a, (hl)
+            return Ok(Instruction {
+                op: AND {
+                    y: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0xA7 => {
+            // and a, a
+            return Ok(Instruction {
+                op: AND { y: R8_A },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0xA8 => {
             // xor a, b
             return Ok(Instruction {
@@ -730,6 +808,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xC0 => {
+            // ret nz
+            return Ok(Instruction {
+                op: RET_CC { cc: CC_NZ },
+                size: 1,
+                cycles: 8,
+                branch_cycles: Some(20),
+            });
+        }
         0xC1 => {
             // pop bc
             return Ok(Instruction {
@@ -755,6 +842,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 size: 1,
                 cycles: 16,
                 branch_cycles: None,
+            });
+        }
+        0xC8 => {
+            // ret z
+            return Ok(Instruction {
+                op: RET_CC { cc: CC_Z },
+                size: 1,
+                cycles: 8,
+                branch_cycles: Some(20),
             });
         }
         0xC9 => {
@@ -804,6 +900,24 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xD0 => {
+            // ret nc
+            return Ok(Instruction {
+                op: RET_CC { cc: CC_NC },
+                size: 1,
+                cycles: 8,
+                branch_cycles: Some(20),
+            });
+        }
+        0xD8 => {
+            // ret c
+            return Ok(Instruction {
+                op: RET_CC { cc: CC_C },
+                size: 1,
+                cycles: 8,
+                branch_cycles: Some(20),
+            });
+        }
         0xE0 => {
             // ld (imm8), a
             return Ok(Instruction {
@@ -824,6 +938,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                     src: R8_A,
                 },
                 size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0xE6 => {
+            // and a, imm8
+            return Ok(Instruction {
+                op: AND { y: IMM8(imm8) },
+                size: 2,
                 cycles: 8,
                 branch_cycles: None,
             });
@@ -867,6 +990,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 op: OR { y: IMM8(imm8) },
                 size: 2,
                 cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0xFA => {
+            // ld a, (imm16)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(IMM16(imm16))),
+                },
+                size: 3,
+                cycles: 16,
                 branch_cycles: None,
             });
         }
@@ -916,6 +1051,8 @@ fn operand_to_string(operand: &Operand) -> String {
         Operand::R16_HLI => String::from("hl+"),
         Operand::CC_NZ => String::from("nz"),
         Operand::CC_Z => String::from("z"),
+        Operand::CC_NC => String::from("nc"),
+        Operand::CC_C => String::from("c"),
         Operand::IMM8(imm8) => format!("{:#04X}", imm8),
         Operand::IMM8_SIGNED(imm8) => format!("{}", imm8),
         Operand::IMM16(imm16) => format!("{:#06X}", imm16),
@@ -943,6 +1080,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         } => format!("jr {cc}, {offset}"),
         Operation::CALL { proc } => format!("call {proc}"),
         Operation::RET => String::from("ret"),
+        Operation::RET_CC { cc } => format!("ret {cc}"),
         Operation::PUSH { reg: word } => format!("push {word}"),
         Operation::POP { reg: word } => format!("pop {word}"),
         Operation::DEC { x } => format!("dec {x}"),
@@ -950,7 +1088,8 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::ADD { x, y } => format!("add {x}, {y}"),
         Operation::SUB { y } => format!("sub a, {y}"),
         Operation::OR { y } => format!("or a, {y}"),
-        Operation::XOR { y: x } => format!("xor a, {x}"),
+        Operation::XOR { y } => format!("xor a, {y}"),
+        Operation::AND { y } => format!("and a, {y}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
         Operation::RL { x } => format!("rl {x}"),
         Operation::RR { x } => format!("rr {x}"),

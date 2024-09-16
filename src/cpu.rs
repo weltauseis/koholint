@@ -265,6 +265,8 @@ impl CPU {
         match cc {
             Operand::CC_NZ => !self.read_z_flag(),
             Operand::CC_Z => self.read_z_flag(),
+            Operand::CC_NC => !self.read_c_flag(),
+            Operand::CC_C => self.read_c_flag(),
             _ => panic!("GET_CC : INVALID CONDITION ({:?})", cc),
         }
     }
