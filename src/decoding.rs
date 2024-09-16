@@ -45,6 +45,7 @@ pub enum Operation {
     INC { x: Operand },
     ADD { x: Operand, y: Operand },
     SUB { y: Operand },
+    OR { y: Operand },
     XOR { y: Operand },
     BIT { bit: u8, src: Operand },
     RL { x: Operand },
@@ -629,6 +630,80 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xB0 => {
+            // or a, b
+            return Ok(Instruction {
+                op: OR { y: R8_B },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xB1 => {
+            // or a, c
+            return Ok(Instruction {
+                op: OR { y: R8_C },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xB2 => {
+            // or a, d
+            return Ok(Instruction {
+                op: OR { y: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xB3 => {
+            // or a, e
+            return Ok(Instruction {
+                op: OR { y: R8_E },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xB4 => {
+            // or a, h
+            return Ok(Instruction {
+                op: OR { y: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xB5 => {
+            // or a, l
+            return Ok(Instruction {
+                op: OR { y: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0xB6 => {
+            // or a, (hl)
+            return Ok(Instruction {
+                op: OR {
+                    y: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0xB7 => {
+            // or a, a
+            return Ok(Instruction {
+                op: OR { y: R8_A },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0xBE => {
             // cp a, (hl)
             return Ok(Instruction {
@@ -771,6 +846,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xF6 => {
+            // or a, imm8
+            return Ok(Instruction {
+                op: OR { y: IMM8(imm8) },
+                size: 2,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0xFE => {
             // cp imm8
             return Ok(Instruction {
@@ -841,6 +925,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::INC { x } => format!("inc {x}"),
         Operation::ADD { x, y } => format!("add {x}, {y}"),
         Operation::SUB { y } => format!("sub a, {y}"),
+        Operation::OR { y } => format!("or a, {y}"),
         Operation::XOR { y: x } => format!("xor a, {x}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
         Operation::RL { x } => format!("rl {x}"),

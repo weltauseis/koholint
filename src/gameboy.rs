@@ -564,6 +564,27 @@ impl Gameboy {
                 self.cpu.write_h_flag(false);
                 self.cpu.write_c_flag(false);
             }
+            Operation::OR { y } => {
+                // or is always done with the a register as first operand (x)
+                let a = self.cpu.read_r8(&R8_A);
+                let other = match y {
+                    // second operand can only be another 8-bit register or pointer in hl
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                    PTR(ptr) => match *ptr {
+                        R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
+                        _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                };
+
+                self.cpu.write_r8(&R8_A, a | other);
+
+                // xor flags : Z 0 0 0
+                self.cpu.write_z_flag(self.cpu.read_r8(&R8_A) == 0);
+                self.cpu.write_n_flag(false);
+                self.cpu.write_h_flag(false);
+                self.cpu.write_c_flag(false);
+            }
             Operation::BIT { bit, src } => {
                 // test bit in register / memory, set the zero flag to complement of bit
 
