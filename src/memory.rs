@@ -9,19 +9,20 @@ use crate::error::{EmulationError, EmulationErrorType};
 // TODO : add support for switchable external RAM
 
 pub struct Memory {
-    boot_rom: [u8; 0x100],         // 0000-00FF | Boot ROM (mapped only during boot)
-    rom_bank: [u8; 0x4000],        // 0000-3FFF | 16 KiB fixed ROM bank
-    rom_switch: Vec<[u8; 0x4000]>, // 4000-7FFF | 16 KiB switchable ROM bank
-    vram: [u8; 0x2000],            // 8000-9FFF | 8KiB Video Ram
-    ext_ram: [u8; 0x2000],         // A000-BFFF | 8 KiB External RAM (cartridge)
-    wram: [u8; 0x4000],            // C000-CFFF | 4 KiB Work RAM
+    boot_rom: [u8; 0x100],        // 0000-00FF | Boot ROM (mapped only during boot)
+    fixed_rom_bank: [u8; 0x4000], // 0000-3FFF | 16 KiB fixed ROM bank
+    switch_rom_bank: Vec<[u8; 0x4000]>, // 4000-7FFF | 16 KiB switchable ROM bank
+    vram: [u8; 0x2000],           // 8000-9FFF | 8KiB Video Ram
+    ext_ram: [u8; 0x2000],        // A000-BFFF | 8 KiB External RAM (cartridge)
+    wram: [u8; 0x4000],           // C000-CFFF | 4 KiB Work RAM
     switchable_wram: [u8; 0x4000], // D000-DFFF | 4 KiB Work RAM
-    oam: [u8; 160],                // FE00-FE9F | Object Attribute Memory
-    io_hw: [u8; 0x80],             // FF00-FF7F | Memory-Mapped I/O
-    hram: [u8; 0x7F],              // FF80-FFFE | High Ram
-    ie: u8,                        // FFFF      | Interrupt Enable Register (IE)
+    oam: [u8; 160],               // FE00-FE9F | Object Attribute Memory
+    io_hw: [u8; 0x80],            // FF00-FF7F | Memory-Mapped I/O
+    hram: [u8; 0x7F],             // FF80-FFFE | High Ram
+    ie: u8,                       // FFFF      | Interrupt Enable Register (IE)
     // ---------------
     mbc: MBC,
+    selected_rom_bank: u8,
 }
 
 impl Memory {
@@ -51,8 +52,8 @@ impl Memory {
                 0x34, 0x20, 0xf5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xfb, 0x86, 0x20, 0xfe,
                 0x3e, 0x01, 0xe0, 0x50,
             ],
-            rom_bank: [0; 0x4000],
-            rom_switch: vec![[0; 0x4000]],
+            fixed_rom_bank: [0; 0x4000],
+            switch_rom_bank: vec![[0; 0x4000]],
             vram: [0; 0x2000],
             ext_ram: [0; 0x2000],
             wram: [0; 0x4000],
@@ -62,6 +63,7 @@ impl Memory {
             hram: [0; 0x7F],
             ie: 0x00,
             mbc: MBC::NONE,
+            selected_rom_bank: 1,
         };
     }
 
@@ -85,9 +87,9 @@ impl Memory {
                 );
 
                 // simply map the rom to the two banks
-                self.rom_bank.copy_from_slice(&rom[0..0x4000]);
+                self.fixed_rom_bank.copy_from_slice(&rom[0..0x4000]);
                 if rom.len() > 0x4000 {
-                    self.rom_switch[0][..(rom.len() - 0x4000)].copy_from_slice(&rom[0x4000..]);
+                    self.switch_rom_bank[0][..(rom.len() - 0x4000)].copy_from_slice(&rom[0x4000..]);
                 }
             }
             0x01 => {
@@ -96,7 +98,7 @@ impl Memory {
 
                 // map the fixed rom bank,
                 // then the switchable banks until all the rom has been mapped
-                self.rom_bank[..].copy_from_slice(&rom[0..0x4000]);
+                self.fixed_rom_bank[..].copy_from_slice(&rom[0..0x4000]);
                 let mut switchable_banks: Vec<[u8; 0x4000]> = Vec::new();
                 let mut mapped = 0x4000;
                 while mapped < rom.len() {
@@ -108,11 +110,11 @@ impl Memory {
                     mapped += 0x4000;
                 }
 
-                self.rom_switch = switchable_banks;
+                self.switch_rom_bank = switchable_banks;
 
                 info!(
                     "MBC1 : {} ROM BANKS (TOTAL SIZE : {}KiB)",
-                    1 + self.rom_switch.len(),
+                    1 + self.switch_rom_bank.len(),
                     rom.len() / 0x400,
                 );
             }
@@ -167,14 +169,19 @@ impl Memory {
                 if (self.read_byte(0xFF50) == 0) && (address <= 0xFF) {
                     return self.boot_rom[address as usize];
                 } else {
-                    return self.rom_bank[address as usize];
+                    return self.fixed_rom_bank[address as usize];
                 }
             }
             // SECOND ROM BANK
             0x4000..0x8000 => match self.mbc {
-                MBC::NONE => self.rom_switch[0][(address - 0x4000) as usize],
+                MBC::NONE => self.switch_rom_bank[0][(address - 0x4000) as usize],
+                MBC::MBC1 => {
+                    let selected = self.selected_rom_bank.max(1);
+                    // bank 0 is the fixed bank, hence the -1 here
+                    self.switch_rom_bank[selected as usize - 1][(address - 0x4000) as usize]
+                }
                 _ => {
-                    todo!()
+                    todo!("other mbc types")
                 }
             },
             // VRAM
@@ -231,10 +238,35 @@ impl Memory {
     pub fn write_byte(&mut self, address: u16, value: u8) -> Result<(), EmulationError> {
         match address {
             // ROM
-            0x0000..0x8000 => {
-                // writing to the rom space switches rom banks
+            0x0000..0x2000 => {
+                // writing to this rom space enables external ram
                 // but for now we ignore it
-                warn!("WRITE TO ROM BANK ({:#06X})", address);
+                // FIXME
+                warn!("WRITE TO EXT RAM ENABLE ({:#06X})", address);
+            }
+            0x2000..0x4000 => {
+                // writing to this rom address range selects the rom bank
+                // for the MBC
+                let nb_additional_banks = self.switch_rom_bank.len() as u8;
+                let mut corrected_value = value;
+
+                if corrected_value == 0 {
+                    // bank 0 is mapped in a fixed manner to 0000..=4000
+                    // and can't be mapped twice
+                    corrected_value = 1
+                };
+                if corrected_value > nb_additional_banks {
+                    // on the gameboy, this register is masked
+                    // so that you can't map a bank that doesn't exist
+                    corrected_value = nb_additional_banks;
+                }
+
+                self.selected_rom_bank = corrected_value;
+            }
+            0x4000..0x6000 => {
+                // writing to this range  switches the selected ram bank
+                // for 32 KiB RAM cartridges
+                todo!("ram switching")
             }
             // VRAM
             0x8000..0xA000 => {
@@ -456,4 +488,6 @@ impl Memory {
 enum MBC {
     NONE,
     MBC1,
+    MBC2,
+    MBC3,
 }

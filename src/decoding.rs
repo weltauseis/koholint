@@ -2458,6 +2458,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // jp hl
+        0xE9 => {
+            return Ok(Instruction {
+                op: JP { addr: R16_HL },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         // ld (imm16), a
         0xEA => {
             return Ok(Instruction {

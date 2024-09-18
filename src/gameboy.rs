@@ -603,7 +603,7 @@ impl Gameboy {
                         _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                     },
                     IMM8(imm8) => imm8,
-                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y:?} at {pc:#06X}"),
                 };
 
                 self.cpu.write_r8(&R8_A, a ^ other);
@@ -622,9 +622,10 @@ impl Gameboy {
                     R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
                     PTR(ptr) => match *ptr {
                         R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
-                        _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                        _ => panic!("(CRITICAL) OR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                     },
-                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                    IMM8(imm8) => imm8,
+                    _ => panic!("(CRITICAL) OR : ILLEGAL SECOND OPERAND {y:?} at {pc:#06X}"),
                 };
 
                 self.cpu.write_r8(&R8_A, a | other);
@@ -643,10 +644,10 @@ impl Gameboy {
                     R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
                     PTR(ptr) => match *ptr {
                         R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
-                        _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                        _ => panic!("(CRITICAL) AND : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                     },
                     IMM8(imm8) => imm8,
-                    _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                    _ => panic!("(CRITICAL) AND : ILLEGAL SECOND OPERAND {y:?} at {pc:#06X}"),
                 };
 
                 self.cpu.write_r8(&R8_A, a & other);
