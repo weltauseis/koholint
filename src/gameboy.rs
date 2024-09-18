@@ -1,5 +1,5 @@
 use core::panic;
-use log::warn;
+use log::{info, warn};
 
 use crate::{
     cpu::CPU,
@@ -66,9 +66,9 @@ impl Gameboy {
         return Ok(cycles_elapsed);
     }
 
-    fn handle_interrupts(&mut self) {
+    fn handle_interrupts(&mut self) -> Result<(), EmulationError> {
         if !self.cpu().interrupts_enabled() {
-            return;
+            return Ok(());
         }
 
         // interrupts are priority-based, so we need to check in order
@@ -82,7 +82,14 @@ impl Gameboy {
         }
         // TIMER
         else if self.memory.is_interrupt_enabled(2) && self.memory.is_interrupt_requested(2) {
-            panic!("TIMER INTERRUPT REQUESTED AND ENABLED");
+            info!("TIMER INTERRUPT");
+            self.cpu.disable_interrupts();
+            self.memory.clear_interrupt(2);
+            self.push_word(self.cpu.read_program_counter())?;
+            self.cpu.write_program_counter(0x50);
+
+            // FIXME : Interrupts should take a lot more time to execute
+            // https://gbdev.io/pandocs/Interrupts.html
         }
         // SERIAL
         else if self.memory.is_interrupt_enabled(3) && self.memory.is_interrupt_requested(3) {
@@ -92,6 +99,8 @@ impl Gameboy {
         else if self.memory.is_interrupt_enabled(4) && self.memory.is_interrupt_requested(4) {
             panic!("JOYPAD INTERRUPT REQUESTED AND ENABLED");
         }
+
+        return Ok(());
     }
 
     fn update_misc(&mut self) {

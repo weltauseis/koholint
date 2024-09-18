@@ -476,6 +476,11 @@ impl Memory {
         self.io_hw[0x0F] = interrupt_request_byte | (1 << interrupt);
     }
 
+    pub fn clear_interrupt(&mut self, interrupt: u8) {
+        let interrupt_request_byte = self.read_byte(0xFF0F);
+        self.io_hw[0x0F] = interrupt_request_byte & !(1 << interrupt);
+    }
+
     // Timer
     pub fn is_timer_started(&self) -> bool {
         // 0xFF07 : 2       |   1   0
