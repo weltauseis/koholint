@@ -90,11 +90,13 @@ impl CPU {
         return match r16 {
             Operand::R16_BC => u16::from_be_bytes([self.b, self.c]),
             Operand::R16_DE => u16::from_be_bytes([self.d, self.e]),
+            Operand::R16_AF => u16::from_be_bytes([self.a, self.f]),
             Operand::R16_HL | Operand::R16_HLD | Operand::R16_HLI => {
                 u16::from_be_bytes([self.h, self.l])
             }
             Operand::R16_SP => self.sp,
-            _ => panic!("GET_R16 : INVALID REGISTER ({:?})", r16),
+
+            _ => panic!("READ_R16 : INVALID REGISTER ({:?})", r16),
         };
     }
 
@@ -109,6 +111,10 @@ impl CPU {
                 self.d = bytes[1];
                 self.e = bytes[0];
             }
+            Operand::R16_AF => {
+                self.a = bytes[1];
+                self.f = bytes[0];
+            }
             Operand::R16_HL | Operand::R16_HLD => {
                 self.h = bytes[1];
                 self.l = bytes[0];
@@ -116,7 +122,7 @@ impl CPU {
             Operand::R16_SP => {
                 self.sp = value;
             }
-            _ => panic!("SET_R16 : INVALID REGISTER ({:?})", r16),
+            _ => panic!("WRITE_R16 : INVALID REGISTER ({:?})", r16),
         };
     }
 

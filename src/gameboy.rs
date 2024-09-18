@@ -518,6 +518,7 @@ impl Gameboy {
                     }
                     // signed SP add is also a thing apparently
                     /* Operand::R16_SP => {
+                        let sp = self.cpu.read_stack_pointer();
                         let value = match y {
                             IMM8_SIGNED(imm8) => imm8,
                             _ => panic!("(CRITICAL) ADD : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
@@ -525,7 +526,6 @@ impl Gameboy {
 
                         self.cpu.offset_stack_pointer(value);
 
-                        let sp = self.cpu.read_stack_pointer();
                         // flags : 0 0 h c
                         self.cpu.write_z_flag(false);
                         self.cpu.write_n_flag(false);
@@ -972,10 +972,9 @@ impl Gameboy {
                         _ => panic!("(CRITICAL) JR_CC : ILLEGAL OFFSET {offset_oprd} at {pc:#06X}"),
                     };
 
-                    let extra_cycles = instr.branch_cycles.unwrap() - instr.cycles;
+                    cycles_elapsed = instr.branch_cycles.unwrap();
 
                     self.cpu.offset_program_counter(offset);
-                    cycles_elapsed += extra_cycles;
                 }
             }
             Operation::JP { addr } => {
@@ -1002,6 +1001,26 @@ impl Gameboy {
 
                 // jump to the procedure
                 self.cpu.write_program_counter(address);
+            }
+            Operation::CALL_CC { cc, proc } => {
+                let address = match proc {
+                    IMM16(imm16) => imm16,
+                    _ => {
+                        panic!("(CRITICAL) CALL CC : ILLEGAL PROCEDURE ADDRESS {proc} at {pc:#06X}")
+                    }
+                };
+
+                if self.cpu.get_cc(&cc) {
+                    // push the return address to the stack
+                    let current_pc = self.cpu.read_program_counter();
+                    self.push_word(current_pc)?;
+
+                    // jump to the procedure
+                    self.cpu.write_program_counter(address);
+
+                    // update the cycles elapsed since we branched
+                    cycles_elapsed = instr.branch_cycles.unwrap();
+                }
             }
             Operation::RST { addr } => {
                 // rst is like call, but only for a few fixed addresses

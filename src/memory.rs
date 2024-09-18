@@ -70,7 +70,7 @@ impl Memory {
 
         info!(
             "CARTRIDGE TITLE : {}",
-            std::str::from_utf8(&rom[0x0134..=0x0143])
+            std::str::from_utf8(&rom[0x0134..0x0143])
                 .expect("TITLE field in cartdrige header is not ASCII : your rom may be corrupted")
         );
 
