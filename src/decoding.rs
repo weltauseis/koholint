@@ -112,6 +112,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x02 => {
+            // ld (bc), a
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_BC)),
+                    src: R8_A,
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x03 => {
             // inc bc
             return Ok(Instruction {
@@ -147,6 +159,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                     src: IMM8(imm8),
                 },
                 size: 2,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x0A => {
+            // ld a, (bc)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(R16_BC)),
+                },
+                size: 1,
                 cycles: 8,
                 branch_cycles: None,
             });
@@ -356,6 +380,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x26 => {
+            // ld h, imm8
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: IMM8(imm8),
+                },
+                size: 2,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x28 => {
             // jr z, imm8
             return Ok(Instruction {
@@ -448,6 +484,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x3A => {
+            // ld a, (hl-)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(R16_HLD)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x3D => {
             // dec a
             return Ok(Instruction {
@@ -469,6 +517,186 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x40 => {
+            // ld b, b
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x41 => {
+            // ld b, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x42 => {
+            // ld b, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x43 => {
+            // ld b, e
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x44 => {
+            // ld b, h
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x45 => {
+            // ld b, l
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x46 => {
+            // ld b, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x47 => {
+            // ld b, a
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_B,
+                    src: R8_A,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x48 => {
+            // ld c, b
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x49 => {
+            // ld c, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x4A => {
+            // ld c, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x4B => {
+            // ld c, e
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x4C => {
+            // ld c, h
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x4D => {
+            // ld c, l
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x4E => {
+            // ld c, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_C,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x4F => {
             // ld c, a
             return Ok(Instruction {
@@ -478,6 +706,90 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 1,
                 cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x50 => {
+            // ld d, b
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x51 => {
+            // ld d, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x52 => {
+            // ld d, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x53 => {
+            // ld d, e
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x54 => {
+            // ld d, h
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x55 => {
+            // ld d, l
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x56 => {
+            // ld d, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_D,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
                 branch_cycles: None,
             });
         }
@@ -493,6 +805,186 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x58 => {
+            // ld e, b
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x59 => {
+            // ld e, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x5A => {
+            // ld e, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x5B => {
+            // ld e, e
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x5C => {
+            // ld e, h
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x5D => {
+            // ld e, l
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x5E => {
+            // ld e, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x5F => {
+            // ld e, a
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_E,
+                    src: R8_A,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x60 => {
+            // ld h, b
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x61 => {
+            // ld h, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x62 => {
+            // ld h, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x63 => {
+            // ld h, e
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x64 => {
+            // ld h, h
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x65 => {
+            // ld h, l
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x66 => {
+            // ld h, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_H,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x67 => {
             // ld h, a
             return Ok(Instruction {
@@ -502,6 +994,174 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 1,
                 cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x68 => {
+            // ld l, b
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x69 => {
+            // ld l, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x6A => {
+            // ld l, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x6B => {
+            // ld l, e
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x6C => {
+            // ld l, h
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x6D => {
+            // ld l, l
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x6E => {
+            // ld l, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x6F => {
+            // ld l, a
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: R8_A,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x70 => {
+            // ld (hl), b
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_B,
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x71 => {
+            // ld (hl), c
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x72 => {
+            // ld (hl), d
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_D,
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x73 => {
+            // ld (hl), e
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_E,
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x74 => {
+            // ld (hl), h
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_H,
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x75 => {
+            // ld (hl), l
+            return Ok(Instruction {
+                op: LD {
+                    dst: PTR(Box::new(R16_HL)),
+                    src: R8_L,
+                },
+                size: 1,
+                cycles: 8,
                 branch_cycles: None,
             });
         }
@@ -523,6 +1183,30 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 op: LD {
                     dst: R8_A,
                     src: R8_B,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x79 => {
+            // ld a, c
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: R8_C,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x7A => {
+            // ld a, d
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: R8_D,
                 },
                 size: 1,
                 cycles: 4,
@@ -559,6 +1243,30 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 op: LD {
                     dst: R8_A,
                     src: R8_L,
+                },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x7E => {
+            // ld a, (hl)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x7F => {
+            // ld a, a
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: R8_A,
                 },
                 size: 1,
                 cycles: 4,
@@ -1057,6 +1765,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 2,
                 cycles: 12,
+                branch_cycles: None,
+            });
+        }
+        0xF2 => {
+            // ld a, (c)
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_A,
+                    src: PTR(Box::new(R8_C)),
+                },
+                size: 1,
+                cycles: 8,
                 branch_cycles: None,
             });
         }
