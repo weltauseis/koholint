@@ -200,6 +200,10 @@ impl Memory {
             0xFF00..0xFF80 => {
                 // filtering the adress to warn for unimplemented things
                 match address {
+                    0xFF00 => {
+                        warn!("JOYPAD INPUT READ");
+                        return 0x0F;
+                    }
                     0xFF42..=0xFF43 => { /* screen scrolling bytes,it's fine to access */ }
                     0xFF44..=0xFF45 => {
                         // LY indicates the current horizontal line
