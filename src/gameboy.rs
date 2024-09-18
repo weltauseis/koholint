@@ -17,6 +17,7 @@ pub struct Gameboy {
     tima_cycles: u64,   // MAIN TIMER
     vblank_cycles: u64, // VBLANK INTERRUPT
     vblank_already_req: bool,
+    halted: bool,
 }
 
 impl Gameboy {
@@ -32,6 +33,7 @@ impl Gameboy {
             tima_cycles: 0,
             vblank_cycles: 0,
             vblank_already_req: false,
+            halted: false,
         };
     }
 
@@ -47,6 +49,17 @@ impl Gameboy {
     // functions
 
     pub fn step(&mut self) -> Result<u64, EmulationError> {
+        if self.halted {
+            // FIXME : handle this better
+            if self.memory.interrupt_pending_and_enabled() {
+                self.halted = false;
+                self.handle_interrupts()?;
+                return Ok(4);
+            }
+
+            return Ok(4);
+        }
+
         let instr = decoding::decode_next_instruction(&self)?;
         let pc_before = self.cpu.read_program_counter();
 
@@ -60,7 +73,7 @@ impl Gameboy {
             e
         })?;
 
-        self.handle_interrupts();
+        self.handle_interrupts()?;
         self.update_misc();
 
         return Ok(cycles_elapsed);
@@ -72,9 +85,13 @@ impl Gameboy {
         }
 
         // interrupts are priority-based, so we need to check in order
-        // V-BLANK
+        // VBLANK
         if self.memory.is_interrupt_enabled(0) && self.memory.is_interrupt_requested(0) {
-            panic!("V-BLANK INTERRUPT REQUESTED AND ENABLED");
+            info!("VBLANK INTERRUPT");
+            self.cpu.disable_interrupts();
+            self.memory.clear_interrupt(0);
+            self.push_word(self.cpu.read_program_counter())?;
+            self.cpu.write_program_counter(0x40);
         }
         // LCD
         else if self.memory.is_interrupt_enabled(1) && self.memory.is_interrupt_requested(1) {
@@ -1156,7 +1173,15 @@ impl Gameboy {
                     self.cpu.write_program_counter(return_address);
                 }
             }
+            Operation::RETI => {
+                let return_address = self.pop_word();
 
+                // jump to where the procedure was called
+                self.cpu.write_program_counter(return_address);
+
+                // re-enable interrupts
+                self.cpu.enable_interrupts();
+            }
             Operation::PUSH { reg } => {
                 let to_push = match reg {
                     R16_BC | R16_DE | R16_HL | R16_AF => self.cpu.read_r16(&reg),
@@ -1210,6 +1235,23 @@ impl Gameboy {
                 // flags : - 1 1 -
                 self.cpu.write_n_flag(true);
                 self.cpu.write_h_flag(true);
+            }
+
+            Operation::HALT => {
+                // https://rgbds.gbdev.io/docs/v0.8.0/gbz80.7#HALT
+                // FIXME : there is no way this is accurate
+                if self.cpu.interrupts_enabled() {
+                    self.halted = true;
+                    info!("HALTED !");
+                } else {
+                    if !self.memory.interrupt_pending_and_enabled() {
+                        self.halted = true;
+                        info!("HALTED !");
+                    } else {
+                        // so called "halt bug"
+                        warn!("HALT BUG : NOT IMPLEMENTED")
+                    }
+                }
             }
             _ => {
                 return Err(EmulationError {

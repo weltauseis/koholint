@@ -352,9 +352,9 @@ impl Memory {
                     info!("WRITE TO OBJ PALETTE REGISTER");
                 }
                 0xFF7F => {
-                    // this register is supposed to be unused but tetris somehow writes to it
+                    // this register is supposed to be unused but dr mario somehow writes to it
                     // maybe a bug in my emulator
-                    warn!("WEIRD TETRIS WRITE AT 0xFF7F");
+                    warn!("WEIRD DR MARIO WRITE AT 0xFF7F");
                 }
                 _ => {
                     /* return Err(EmulationError {
@@ -479,6 +479,13 @@ impl Memory {
     pub fn clear_interrupt(&mut self, interrupt: u8) {
         let interrupt_request_byte = self.read_byte(0xFF0F);
         self.io_hw[0x0F] = interrupt_request_byte & !(1 << interrupt);
+    }
+
+    pub fn interrupt_pending_and_enabled(&self) -> bool {
+        let ie = self.ie;
+        let i_request = self.io_hw[0x0F];
+
+        return (ie & i_request) != 0;
     }
 
     // Timer

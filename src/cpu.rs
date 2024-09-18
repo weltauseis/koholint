@@ -277,6 +277,8 @@ impl CPU {
         }
     }
 
+    // interrupts stuff
+
     pub fn interrupts_enabled(&self) -> bool {
         return self.ime;
     }

@@ -47,6 +47,7 @@ pub enum Operation {
     RST { addr: Operand },
     RET,
     RET_CC { cc: Operand },
+    RETI,
     PUSH { reg: Operand },
     POP { reg: Operand },
     DEC { x: Operand },
@@ -72,6 +73,7 @@ pub enum Operation {
     DI,
     EI,
     CPL,
+    HALT,
 }
 
 #[derive(Debug)]
@@ -1361,6 +1363,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // halt
+        0x76 => {
+            return Ok(Instruction {
+                op: HALT,
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         // ld (hl), a
         0x77 => {
             return Ok(Instruction {
@@ -2089,6 +2100,19 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // jp z, imm16
+        0xCA => {
+            return Ok(Instruction {
+                op: JP_CC {
+                    cc: CC_Z,
+                    addr: IMM16(imm16),
+                },
+                size: 3,
+                cycles: 12,
+                branch_cycles: Some(16),
+            });
+        }
+        // prefixed
         0xCB => {
             //prefixed bit manipulation instructions
             match imm8 {
@@ -2450,6 +2474,16 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: Some(20),
             });
         }
+        // reti
+        0xD9 => {
+            return Ok(Instruction {
+                op: RETI,
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
+
         // call c, imm16
         0xDC => {
             return Ok(Instruction {
@@ -2773,6 +2807,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RST { addr } => format!("rst {addr}"),
         Operation::RET => String::from("ret"),
         Operation::RET_CC { cc } => format!("ret {cc}"),
+        Operation::RETI => String::from("reti"),
         Operation::PUSH { reg: word } => format!("push {word}"),
         Operation::POP { reg: word } => format!("pop {word}"),
         Operation::DEC { x } => format!("dec {x}"),
@@ -2798,6 +2833,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::DI => String::from("di"),
         Operation::EI => String::from("ei"),
         Operation::CPL => String::from("cpl"),
+        Operation::HALT => String::from("halt"),
     }
 }
 
