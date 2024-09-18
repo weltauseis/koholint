@@ -336,6 +336,15 @@ impl Gameboy {
                                 }
                                 _ => panic!("(CRITICAL) LD : ILLEGAL STACK POINTER OFFSET {ptr} at {pc:#06X}"),
                             },
+                            // special case of 0xF8
+                            SP_PLUS_SIGNED_IMM8(imm8) => {
+                                let sp = self.cpu.read_stack_pointer();
+                                if imm8 >= 0 {
+                                    sp.wrapping_add(imm8.abs() as u16)
+                                } else {
+                                    sp.wrapping_sub(imm8.abs() as u16)
+                               }
+                            }
                             _ => panic!("(CRITICAL) LD : ILLEGAL SRC {src} at {pc:#06X}"),
                         };
 

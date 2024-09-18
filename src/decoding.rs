@@ -29,6 +29,7 @@ pub enum Operand {
     IMM8(u8),
     IMM8_SIGNED(i8),
     IMM16(u16),
+    SP_PLUS_SIGNED_IMM8(i8),
     PTR(Box<Operand>),
 }
 
@@ -2583,6 +2584,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // ld hl, sp + imm8
+        0xF8 => {
+            return Ok(Instruction {
+                op: LD {
+                    dst: R16_HL,
+                    src: SP_PLUS_SIGNED_IMM8(i8::from_le_bytes([imm8])),
+                },
+                size: 2,
+                cycles: 12,
+                branch_cycles: None,
+            });
+        }
         // ld a, (imm16)
         0xFA => {
             return Ok(Instruction {
@@ -2656,6 +2669,7 @@ fn operand_to_string(operand: &Operand) -> String {
         Operand::IMM8(imm8) => format!("{:#04X}", imm8),
         Operand::IMM8_SIGNED(imm8) => format!("{}", imm8),
         Operand::IMM16(imm16) => format!("{:#06X}", imm16),
+        Operand::SP_PLUS_SIGNED_IMM8(imm8) => format!("sp + {}", imm8),
         Operand::PTR(ptr) => format!("({})", operand_to_string(ptr)),
     }
 }
