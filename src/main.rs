@@ -59,7 +59,15 @@ fn run(args: Vec<String>) -> Result<(), EmulationError> {
     while !renderer.window().should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
-            renderer.handle_window_event(event);
+            match event {
+                glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
+                    renderer.window.set_should_close(true)
+                }
+                glfw::WindowEvent::Key(glfw::Key::P, _, glfw::Action::Press, _) => {
+                    debugger.pause();
+                }
+                _ => {}
+            }
         }
 
         while dots < DOTS_IN_FRAME {

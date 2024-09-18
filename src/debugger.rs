@@ -37,6 +37,14 @@ impl Debugger {
         }
     }
 
+    pub fn pause(&mut self) {
+        self.paused = true;
+    }
+
+    pub fn is_paused(&self) -> bool {
+        return self.paused;
+    }
+
     fn prompt_command(&mut self, console: &mut Gameboy) -> Result<u64, EmulationError> {
         // prompt
         print!("(dbg)> ");

@@ -11,7 +11,7 @@ pub struct Renderer<'a> {
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
-    window: &'a mut Window,
+    pub window: &'a mut Window,
     render_pipeline: wgpu::RenderPipeline,
     tile_map: wgpu::Texture,
     tile_map_bind_group: wgpu::BindGroup,
@@ -301,14 +301,14 @@ impl<'a> Renderer<'a> {
         Ok(())
     }
 
-    pub fn handle_window_event(&mut self, event: glfw::WindowEvent) {
+    /* pub fn handle_window_event(&mut self, event: glfw::WindowEvent) {
         match event {
             glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
                 self.window.set_should_close(true)
             }
             _ => {}
         }
-    }
+    } */
 
     pub fn window(&self) -> &Window {
         return self.window;
