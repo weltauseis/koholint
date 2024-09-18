@@ -702,15 +702,35 @@ impl Gameboy {
                     // test bit in memory
                     PTR(ptr) => match *ptr {
                         R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
-                        _ => panic!("(CRITICAL) BIT : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                        _ => panic!("(CRITICAL) BIT : ILLEGAL POINTER {ptr:?} at {pc:#06X}"),
                     },
-                    _ => panic!("(CRITICAL) BIT : ILLEGAL SRC {src} at {pc:#06X}"),
+                    _ => panic!("(CRITICAL) BIT : ILLEGAL SRC {src:?} at {pc:#06X}"),
                 };
 
                 // bit instruction flags : Z 0 1 -
                 self.cpu.write_z_flag((byte >> bit) & 1 == 0); // true if bit is 0, false if bit is 1
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(true);
+            }
+            Operation::RES { bit, x } => {
+                // set bit in register / memory to zero
+                match x {
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let byte = self.cpu.read_r8(&x);
+                        self.cpu.write_r8(&x, byte & !(1 << bit));
+                    }
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let address = self.cpu.read_hl_register();
+                            let byte = self.memory.read_byte(address);
+                            self.memory.write_byte(address, byte & !(1 << bit))?;
+                        }
+                        _ => panic!("(CRITICAL) RES : ILLEGAL POINTER {ptr:?} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) RES : ILLEGAL OPERAND {x:?} at {pc:#06X}"),
+                }
+
+                // no flags
             }
             Operation::SWAP { x } => {
                 // swaps the upper 4 bits and the lower 4 ones

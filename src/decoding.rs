@@ -59,6 +59,7 @@ pub enum Operation {
     XOR { y: Operand },
     AND { y: Operand },
     BIT { bit: u8, src: Operand },
+    RES { bit: u8, x: Operand },
     SWAP { x: Operand },
     RL { x: Operand },
     RR { x: Operand },
@@ -2357,6 +2358,606 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                         branch_cycles: None,
                     });
                 }
+                // res 0, b
+                0x80 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, c
+                0x81 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, d
+                0x82 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, e
+                0x83 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, h
+                0x84 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, l
+                0x85 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, (hl)
+                0x86 => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 0,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 0, a
+                0x87 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 0, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, b
+                0x88 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, c
+                0x89 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, d
+                0x8A => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, e
+                0x8B => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, h
+                0x8C => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, l
+                0x8D => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, (hl)
+                0x8E => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 1,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 1, a
+                0x8F => {
+                    return Ok(Instruction {
+                        op: RES { bit: 1, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, b
+                0x90 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, c
+                0x91 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, d
+                0x92 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, e
+                0x93 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, h
+                0x94 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, l
+                0x95 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, (hl)
+                0x96 => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 2,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 2, a
+                0x97 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 2, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, b
+                0x98 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, c
+                0x99 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, d
+                0x9A => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, e
+                0x9B => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, h
+                0x9C => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, l
+                0x9D => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, (hl)
+                0x9E => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 3,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 3, a
+                0x9F => {
+                    return Ok(Instruction {
+                        op: RES { bit: 3, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, b
+                0xA0 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, c
+                0xA1 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, d
+                0xA2 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, e
+                0xA3 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, h
+                0xA4 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, l
+                0xA5 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, (hl)
+                0xA6 => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 4,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 4, a
+                0xA7 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 4, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, b
+                0xA8 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, c
+                0xA9 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, d
+                0xAA => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, e
+                0xAB => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, h
+                0xAC => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, l
+                0xAD => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, (hl)
+                0xAE => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 5,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 5, a
+                0xAF => {
+                    return Ok(Instruction {
+                        op: RES { bit: 5, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, b
+                0xB0 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, c
+                0xB1 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, d
+                0xB2 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, e
+                0xB3 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, h
+                0xB4 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, l
+                0xB5 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, (hl)
+                0xB6 => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 6,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 6, a
+                0xB7 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 6, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, b
+                0xB8 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, c
+                0xB9 => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, d
+                0xBA => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, e
+                0xBB => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, h
+                0xBC => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, l
+                0xBD => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, (hl)
+                0xBE => {
+                    return Ok(Instruction {
+                        op: RES {
+                            bit: 7,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // res 7, a
+                0xBF => {
+                    return Ok(Instruction {
+                        op: RES { bit: 7, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
                 _ => {
                     return Err(EmulationError {
                         ty: EmulationErrorType::UnhandledInstructionDecode(0xCB00 + imm8 as u16),
@@ -2819,6 +3420,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::XOR { y } => format!("xor a, {y}"),
         Operation::AND { y } => format!("and a, {y}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
+        Operation::RES { bit, x: src } => format!("res {bit}, {src}"),
         Operation::SWAP { x } => format!("swap {x}"),
         Operation::RL { x } => format!("rl {x}"),
         Operation::RR { x } => format!("rr {x}"),
