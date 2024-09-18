@@ -1003,7 +1003,22 @@ impl Gameboy {
                 // jump to the procedure
                 self.cpu.write_program_counter(address);
             }
+            Operation::RST { addr } => {
+                // rst is like call, but only for a few fixed addresses
+                let address = match addr {
+                    IMM16(imm16) => imm16,
+                    _ => {
+                        panic!("(CRITICAL) RST : ILLEGAL ADDRESS {addr} at {pc:#06X}")
+                    }
+                };
 
+                // push the return address to the stack
+                let current_pc = self.cpu.read_program_counter();
+                self.push_word(current_pc)?;
+
+                // jump to the procedure
+                self.cpu.write_program_counter(address);
+            }
             Operation::RET => {
                 let return_address = self.pop_word();
 

@@ -428,7 +428,7 @@ impl Memory {
     // Interrupts functions
     // https://gbdev.io/pandocs/Interrupts.html
     pub fn is_interrupt_enabled(&self, interrupt: u8) -> bool {
-        let interrupt_enable_byte = self.read_byte(0xFFFF);
+        let interrupt_enable_byte = self.ie;
 
         return (interrupt_enable_byte >> interrupt) & 1 == 1;
     }

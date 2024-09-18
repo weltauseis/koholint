@@ -41,6 +41,7 @@ pub enum Operation {
     JR { offset_oprd: Operand },
     JR_CC { cc: Operand, offset_oprd: Operand },
     CALL { proc: Operand },
+    RST { addr: Operand },
     RET,
     RET_CC { cc: Operand },
     PUSH { reg: Operand },
@@ -1563,6 +1564,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xC7 => {
+            // rst 00
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x00),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
         0xC8 => {
             // ret z
             return Ok(Instruction {
@@ -1693,6 +1705,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xCF => {
+            // rst 08
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x08),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
         0xD0 => {
             // ret nc
             return Ok(Instruction {
@@ -1702,6 +1725,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: Some(20),
             });
         }
+        0xD7 => {
+            // rst 10
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x10),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
         0xD8 => {
             // ret c
             return Ok(Instruction {
@@ -1709,6 +1743,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 size: 1,
                 cycles: 8,
                 branch_cycles: Some(20),
+            });
+        }
+        0xDF => {
+            // rst 18
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x18),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
             });
         }
         0xE0 => {
@@ -1744,6 +1789,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xE7 => {
+            // rst 20
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x20),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
         0xEA => {
             // ld (imm16), a
             return Ok(Instruction {
@@ -1752,6 +1808,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                     src: R8_A,
                 },
                 size: 3,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
+        0xEF => {
+            // rst 28
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x28),
+                },
+                size: 1,
                 cycles: 16,
                 branch_cycles: None,
             });
@@ -1798,6 +1865,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xF7 => {
+            // rst 30
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x30),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
         0xFA => {
             // ld a, (imm16)
             return Ok(Instruction {
@@ -1828,7 +1906,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
-
+        0xFF => {
+            // rst 38
+            return Ok(Instruction {
+                op: RST {
+                    addr: Operand::IMM16(0x38),
+                },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
+            });
+        }
         _ => {
             return Err(EmulationError {
                 ty: EmulationErrorType::UnhandledInstructionDecode(instr as u16),
@@ -1884,6 +1972,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
             offset_oprd: offset,
         } => format!("jr {cc}, {offset}"),
         Operation::CALL { proc } => format!("call {proc}"),
+        Operation::RST { addr } => format!("rst {addr}"),
         Operation::RET => String::from("ret"),
         Operation::RET_CC { cc } => format!("ret {cc}"),
         Operation::PUSH { reg: word } => format!("push {word}"),
