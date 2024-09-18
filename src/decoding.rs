@@ -38,6 +38,7 @@ pub enum Operation {
     NOP,
     LD { dst: Operand, src: Operand },
     JP { addr: Operand },
+    JP_CC { cc: Operand, addr: Operand },
     JR { offset_oprd: Operand },
     JR_CC { cc: Operand, offset_oprd: Operand },
     CALL { proc: Operand },
@@ -1941,6 +1942,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // jp nz, imm16
+        0xC2 => {
+            return Ok(Instruction {
+                op: JP_CC {
+                    cc: CC_NZ,
+                    addr: IMM16(imm16),
+                },
+                size: 3,
+                cycles: 12,
+                branch_cycles: Some(16),
+            });
+        }
         // jp imm16
         0xC3 => {
             return Ok(Instruction {
@@ -2658,6 +2671,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::NOP => String::from("nop"),
         Operation::LD { dst, src } => format!("ld {dst}, {src}"),
         Operation::JP { addr } => format! {"jp {addr}"},
+        Operation::JP_CC { cc, addr } => format!("jp {cc}, {addr}"),
         Operation::JR {
             offset_oprd: offset,
         } => format!("jr {offset}"),

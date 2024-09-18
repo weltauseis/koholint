@@ -1057,6 +1057,20 @@ impl Gameboy {
 
                 self.cpu.write_program_counter(address);
             }
+            Operation::JP_CC { cc, addr } => {
+                if self.cpu.get_cc(&cc) {
+                    // jp instruction only takes either an imm16 or the hl register
+                    let address = match addr {
+                        IMM16(imm16) => imm16,
+                        R16_HL => self.cpu.read_hl_register(),
+                        _ => panic!("(CRITICAL) JP CC : ILLEGAL ADDRESS {addr} at {pc:#06X}"),
+                    };
+
+                    self.cpu.write_program_counter(address);
+
+                    cycles_elapsed = instr.branch_cycles.unwrap();
+                }
+            }
             Operation::CALL { proc } => {
                 let address = match proc {
                     IMM16(imm16) => imm16,
