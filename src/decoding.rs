@@ -337,6 +337,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x1B => {
+            // dec de
+            return Ok(Instruction {
+                op: DEC { x: R16_DE },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0x1C => {
             // inc e
             return Ok(Instruction {
@@ -424,6 +433,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x25 => {
+            // dec h
+            return Ok(Instruction {
+                op: DEC { x: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0x26 => {
             // ld h, imm8
             return Ok(Instruction {
@@ -474,14 +492,11 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
-        0x2E => {
-            // ld l, imm8
+        0x2B => {
+            // dec hl
             return Ok(Instruction {
-                op: LD {
-                    dst: R8_L,
-                    src: IMM8(imm8),
-                },
-                size: 2,
+                op: DEC { x: R16_HL },
+                size: 1,
                 cycles: 8,
                 branch_cycles: None,
             });
@@ -492,6 +507,27 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 op: INC { x: R8_L },
                 size: 1,
                 cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x2D => {
+            // dec l
+            return Ok(Instruction {
+                op: DEC { x: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x2E => {
+            // ld l, imm8
+            return Ok(Instruction {
+                op: LD {
+                    dst: R8_L,
+                    src: IMM8(imm8),
+                },
+                size: 2,
+                cycles: 8,
                 branch_cycles: None,
             });
         }
@@ -548,6 +584,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x35 => {
+            // dec (hl)
+            return Ok(Instruction {
+                op: DEC {
+                    x: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 12,
+                branch_cycles: None,
+            });
+        }
         0x36 => {
             // ld (hl), imm8
             return Ok(Instruction {
@@ -579,6 +626,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                     dst: R8_A,
                     src: PTR(Box::new(R16_HLD)),
                 },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x3B => {
+            // dec sp
+            return Ok(Instruction {
+                op: DEC { x: R16_SP },
                 size: 1,
                 cycles: 8,
                 branch_cycles: None,
@@ -2004,6 +2060,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 size: 3,
                 cycles: 12,
                 branch_cycles: Some(24),
+            });
+        }
+        0xD5 => {
+            // push de
+            return Ok(Instruction {
+                op: PUSH { reg: R16_DE },
+                size: 1,
+                cycles: 16,
+                branch_cycles: None,
             });
         }
         0xD6 => {
