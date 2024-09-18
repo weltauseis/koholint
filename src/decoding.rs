@@ -1274,6 +1274,60 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x80 => {
+            // add a, b
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_B },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x81 => {
+            // add a, c
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_C },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x82 => {
+            // add a, d
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x83 => {
+            // add a, e
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_E },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x84 => {
+            // add a, h
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x85 => {
+            // add a, l
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0x86 => {
             // add a, (hl)
             return Ok(Instruction {
@@ -1286,10 +1340,84 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x87 => {
+            // add a, a
+            return Ok(Instruction {
+                op: ADD { x: R8_A, y: R8_A },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0x90 => {
             // sub a, b
             return Ok(Instruction {
                 op: SUB { y: R8_B },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x91 => {
+            // sub a, c
+            return Ok(Instruction {
+                op: SUB { y: R8_C },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x92 => {
+            // sub a, d
+            return Ok(Instruction {
+                op: SUB { y: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x93 => {
+            // sub a, e
+            return Ok(Instruction {
+                op: SUB { y: R8_E },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x94 => {
+            // sub a, h
+            return Ok(Instruction {
+                op: SUB { y: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x95 => {
+            // sub a, l
+            return Ok(Instruction {
+                op: SUB { y: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        0x96 => {
+            // sub a, (hl)
+            return Ok(Instruction {
+                op: SUB {
+                    y: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x97 => {
+            // sub a, a
+            return Ok(Instruction {
+                op: SUB { y: R8_A },
                 size: 1,
                 cycles: 4,
                 branch_cycles: None,
@@ -1564,6 +1692,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xC6 => {
+            // add a, imm8
+            return Ok(Instruction {
+                op: ADD {
+                    x: R8_A,
+                    y: IMM8(imm8),
+                },
+                size: 2,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
         0xC7 => {
             // rst 00
             return Ok(Instruction {
@@ -1723,6 +1863,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 size: 1,
                 cycles: 8,
                 branch_cycles: Some(20),
+            });
+        }
+        0xD6 => {
+            // sub a, imm8
+            return Ok(Instruction {
+                op: SUB { y: IMM8(imm8) },
+                size: 2,
+                cycles: 8,
+                branch_cycles: None,
             });
         }
         0xD7 => {
