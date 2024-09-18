@@ -261,6 +261,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x14 => {
+            // inc d
+            return Ok(Instruction {
+                op: INC { x: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0x15 => {
             // dec d
             return Ok(Instruction {
@@ -325,6 +334,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 1,
                 cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x1C => {
+            // inc e
+            return Ok(Instruction {
+                op: INC { x: R8_E },
+                size: 1,
+                cycles: 4,
                 branch_cycles: None,
             });
         }
@@ -468,6 +486,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x2C => {
+            // inc l
+            return Ok(Instruction {
+                op: INC { x: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         0x2F => {
             // cpl
             return Ok(Instruction {
@@ -510,6 +537,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0x34 => {
+            // inc (hl)
+            return Ok(Instruction {
+                op: INC {
+                    x: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 12,
+                branch_cycles: None,
+            });
+        }
         0x36 => {
             // ld (hl), imm8
             return Ok(Instruction {
@@ -543,6 +581,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 1,
                 cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        0x3C => {
+            // inc a
+            return Ok(Instruction {
+                op: INC { x: R8_A },
+                size: 1,
+                cycles: 4,
                 branch_cycles: None,
             });
         }
