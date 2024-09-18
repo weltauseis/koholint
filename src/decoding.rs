@@ -1914,6 +1914,60 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // cp a, b
+        0xB8 => {
+            return Ok(Instruction {
+                op: CP { y: R8_B },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // cp a, c
+        0xB9 => {
+            return Ok(Instruction {
+                op: CP { y: R8_C },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // cp a, d
+        0xBA => {
+            return Ok(Instruction {
+                op: CP { y: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // cp a, e
+        0xBB => {
+            return Ok(Instruction {
+                op: CP { y: R8_E },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // cp a, h
+        0xBC => {
+            return Ok(Instruction {
+                op: CP { y: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // cp a, l
+        0xBD => {
+            return Ok(Instruction {
+                op: CP { y: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         // cp a, (hl)
         0xBE => {
             return Ok(Instruction {
@@ -1922,6 +1976,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 1,
                 cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        // cp a, a
+        0xBF => {
+            return Ok(Instruction {
+                op: CP { y: R8_A },
+                size: 1,
+                cycles: 4,
                 branch_cycles: None,
             });
         }
@@ -2593,6 +2656,18 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 2,
                 cycles: 12,
+                branch_cycles: None,
+            });
+        }
+        // ld sp, hl
+        0xF9 => {
+            return Ok(Instruction {
+                op: LD {
+                    dst: R16_SP,
+                    src: R16_HL,
+                },
+                size: 1,
+                cycles: 8,
                 branch_cycles: None,
             });
         }
