@@ -680,6 +680,43 @@ impl Gameboy {
                 self.cpu.write_h_flag(false);
                 self.cpu.write_c_flag(false);
             }
+            Operation::SRL { x } => {
+                // shift right logical
+                // for flags, see https://rgbds.gbdev.io/docs/v0.8.0/gbz80.7#SRL_r8
+                match x {
+                    R8_B | R8_C | R8_D | R8_E | R8_H | R8_L | R8_A => {
+                        let register = self.cpu.read_r8(&x);
+                        let carry = register & 1 == 1;
+                        let result = register >> 1;
+                        self.cpu.write_r8(&x, result);
+
+                        // flags : z 0 0 c
+                        self.cpu.write_z_flag(result == 0);
+                        self.cpu.write_n_flag(false);
+                        self.cpu.write_h_flag(false);
+                        self.cpu.write_c_flag(carry);
+                    }
+                    PTR(ptr) => {
+                        match *ptr {
+                            R16_HL => {
+                                let address = self.cpu.read_r16(&R16_HL);
+                                let value = self.memory.read_byte(address);
+                                let carry = value & 1 == 1;
+                                let result = value >> 1;
+                                self.memory.write_byte(address, result)?;
+
+                                // flags : z 0 0 c
+                                self.cpu.write_z_flag(result == 0);
+                                self.cpu.write_n_flag(false);
+                                self.cpu.write_h_flag(false);
+                                self.cpu.write_c_flag(carry);
+                            }
+                            _ => panic!("(CRITICAL) SRL : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                        }
+                    }
+                    _ => panic!("(CRITICAL) SRL : ILLEGAL OPERAND {x} at {pc:#06X}"),
+                }
+            }
             Operation::RL { x } => {
                 match x {
                     // rotate 8-bit register
