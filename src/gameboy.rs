@@ -533,6 +533,37 @@ impl Gameboy {
                     _ => panic!("(CRITICAL) ADD : ILLEGAL FIRST OPERAND {x} at {pc:#06X}"),
                 }
             }
+            Operation::ADC { y } => {
+                // like add, but also adds the carry flag (hence the "c")
+
+                let value = match y {
+                    // add 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                    // add imm8
+                    IMM8(imm8) => imm8,
+                    // add from memory with pointer in hl
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let hl = self.cpu.read_r16(&ptr);
+                            self.memory.read_byte(hl)
+                        }
+                        _ => panic!("(CRITICAL) ADC : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) ADC : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                };
+
+                let a = self.cpu.read_a_register();
+                let carry = if self.cpu.read_c_flag() { 1 } else { 0 };
+                let result = a.wrapping_add(value + carry);
+                self.cpu.write_a_register(result);
+
+                // flags : z 0 h c
+                self.cpu.write_z_flag(result == 0);
+                self.cpu.write_n_flag(false);
+                self.cpu
+                    .write_h_flag((a & 0xF) + ((value + carry) & 0xF) > 0xF);
+                self.cpu.write_c_flag(a < (value + carry));
+            }
             Operation::SUB { y } => {
                 // sub does a - y and stores the result in a
                 let a = self.cpu.read_a_register();
@@ -571,6 +602,7 @@ impl Gameboy {
                         R16_HL => self.memory.read_byte(self.cpu.read_r16(&R16_HL)),
                         _ => panic!("(CRITICAL) XOR : ILLEGAL POINTER {ptr} at {pc:#06X}"),
                     },
+                    IMM8(imm8) => imm8,
                     _ => panic!("(CRITICAL) XOR : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
                 };
 
