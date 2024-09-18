@@ -1,7 +1,7 @@
 use core::fmt;
 
 use crate::{
-    error::{EmulationError, EmulationErrorType, OpCode},
+    error::{EmulationError, EmulationErrorType},
     gameboy::Gameboy,
 };
 
@@ -53,6 +53,7 @@ pub enum Operation {
     XOR { y: Operand },
     AND { y: Operand },
     BIT { bit: u8, src: Operand },
+    SWAP { x: Operand },
     RL { x: Operand },
     RR { x: Operand },
     RLC { x: Operand },
@@ -884,6 +885,80 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                         branch_cycles: None,
                     });
                 }
+                0x30 => {
+                    // swap b
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                0x31 => {
+                    // swap c
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                0x32 => {
+                    // swap d
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                0x33 => {
+                    // swap e
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                0x34 => {
+                    // swap h
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                0x35 => {
+                    // swap l
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                0x36 => {
+                    // swap (hl)
+                    return Ok(Instruction {
+                        op: SWAP {
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                0x37 => {
+                    // swap a
+                    return Ok(Instruction {
+                        op: SWAP { x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
                 0x7C => {
                     // bit 7, h
                     return Ok(Instruction {
@@ -895,7 +970,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 }
                 _ => {
                     return Err(EmulationError {
-                        ty: EmulationErrorType::UnhandledInstructionDecode(OpCode::Ext(imm8)),
+                        ty: EmulationErrorType::UnhandledInstructionDecode(0xCB00 + imm8 as u16),
                         pc: Some(address),
                     });
                 }
@@ -1036,7 +1111,7 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
 
         _ => {
             return Err(EmulationError {
-                ty: EmulationErrorType::UnhandledInstructionDecode(OpCode::Op(instr)),
+                ty: EmulationErrorType::UnhandledInstructionDecode(instr as u16),
                 pc: Some(address),
             });
         }
@@ -1101,6 +1176,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::XOR { y } => format!("xor a, {y}"),
         Operation::AND { y } => format!("and a, {y}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
+        Operation::SWAP { x } => format!("swap {x}"),
         Operation::RL { x } => format!("rl {x}"),
         Operation::RR { x } => format!("rr {x}"),
         Operation::RLC { x } => format!("rlc {x}"),

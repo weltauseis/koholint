@@ -221,7 +221,7 @@ impl Memory {
             }
             // INTERRUP ENABLE
             0xFFFF => {
-                warn!("CALL TO INTERRUPT ENABLE READ : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
+                warn!("CALL TO INTERRUPT ENABLE READ");
                 return self.ie;
             }
             _ => panic!("READ_BYTE : INVALID ADDRESS ({:#06X})", address),
@@ -337,7 +337,7 @@ impl Memory {
             }
             // INTERRUP ENABLE
             0xFFFF => {
-                warn!("CALL TO INTERRUPT ENABLE WRITE : INTERRUPTS ARE NOT YET WELL IMPLEMENTED");
+                warn!("CALL TO INTERRUPT ENABLE WRITE");
                 self.ie = value;
             }
             _ => {

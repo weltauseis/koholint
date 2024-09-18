@@ -644,6 +644,42 @@ impl Gameboy {
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(true);
             }
+            Operation::SWAP { x } => {
+                // swaps the upper 4 bits and the lower 4 ones
+
+                match x {
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let register = self.cpu.read_r8(&x);
+                        let lower_to_upper = register << 4;
+                        let upper_to_lower = register >> 4;
+                        self.cpu.write_r8(&x, lower_to_upper | upper_to_lower);
+
+                        self.cpu
+                            .write_z_flag((lower_to_upper | upper_to_lower) == 0);
+                    }
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let hl = self.cpu.read_hl_register();
+                            let value = self.memory.read_byte(hl);
+                            let lower_to_upper = value << 4;
+                            let upper_to_lower = value >> 4;
+                            self.memory
+                                .write_byte(hl, lower_to_upper | upper_to_lower)?;
+
+                            self.cpu
+                                .write_z_flag((lower_to_upper | upper_to_lower) == 0);
+                        }
+                        _ => panic!("(CRITICAL) SWAP : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) SWAP : ILLEGAL OPERAND {x} at {pc:#06X}"),
+                }
+
+                // flags : z 0 0 0
+
+                self.cpu.write_n_flag(false);
+                self.cpu.write_h_flag(false);
+                self.cpu.write_c_flag(false);
+            }
             Operation::RL { x } => {
                 match x {
                     // rotate 8-bit register
@@ -899,7 +935,7 @@ impl Gameboy {
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(false);
             }
-            Operation::RRCA {} => {
+            Operation::RRCA => {
                 // rotate 8-bit register
 
                 let mut to_rotate = self.cpu.read_r8(&R8_A);

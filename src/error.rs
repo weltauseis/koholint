@@ -9,14 +9,8 @@ pub struct EmulationError {
 }
 
 #[derive(Debug)]
-pub enum OpCode {
-    Op(u8),
-    Ext(u8),
-}
-
-#[derive(Debug)]
 pub enum EmulationErrorType {
-    UnhandledInstructionDecode(OpCode),
+    UnhandledInstructionDecode(u16),
     UnhandledInstructionExec(Instruction),
     UnauthorizedWrite(u16),
 }
@@ -27,14 +21,14 @@ impl Display for EmulationError {
             f,
             "{} {}",
             match &self.ty {
-                EmulationErrorType::UnhandledInstructionDecode(opcode) => match opcode {
-                    OpCode::Op(simple) =>
-                        format!("Unhandled instruction during decoding : {:#04X}", simple),
-                    OpCode::Ext(extended) => format!(
-                        "Unhandled instruction during decoding : 0xCB{:02X}",
-                        extended
-                    ),
-                },
+                EmulationErrorType::UnhandledInstructionDecode(opcode) => format!(
+                    "Unhandled instruction during decoding : {}",
+                    if *opcode > 0xFF {
+                        format!("{opcode:#06X}")
+                    } else {
+                        format!("{opcode:#04X}")
+                    }
+                ),
                 EmulationErrorType::UnhandledInstructionExec(instr) =>
                     format!("Unhandled instruction during execution : {}", instr),
                 EmulationErrorType::UnauthorizedWrite(address) =>
