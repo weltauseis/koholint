@@ -21,7 +21,7 @@
                 }
             },
             "args": [
-                "roms/DR-MARIO.gb"
+                "roms/TETRIS.gb"
             ],
             "cwd": "${workspaceFolder}",
             "env": {

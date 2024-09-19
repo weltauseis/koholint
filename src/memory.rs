@@ -209,6 +209,7 @@ impl Memory {
                         // LY indicates the current horizontal line
                         // LYC indicates on which line an interrupt should be triggered
                     }
+                    0xFF47 => { /* palette byte */ }
                     0xFF07 => { /* timer info byte, fine too */ }
                     0xFF04 => { /* divider register byte, fine too */ }
                     0xFF50 => { /* disables the boot rom when non-zero */ }
@@ -342,15 +343,13 @@ impl Memory {
                 0xFF0F |            // IF 
                 0xFF40 |            // LCD CONTROL
                 0xFF42 | 0xFF43 |   // SCX & SCY
+                0xFF47 |            // PALETTE
                 0xFF50 |            // DISABLES BOOT ROM
                 0xFF05..=0xFF07     // TIMA, TMA, TAC
                 => {
                     // those are all registers that are R/W
                     // they act like normal registers / memory
                     self.io_hw[(address - 0xFF00) as usize] = value;
-                }
-                0xFF47 => {
-                    info!("WRITE TO PALETTE REGISTER");
                 }
                 0xFF48 | 0xFF49 => {
                     info!("WRITE TO OBJ PALETTE REGISTER");

@@ -209,7 +209,7 @@ impl Debugger {
                     "dump" => {
                         let mut ppm_string = String::from("P3\n256 256\n255\n");
 
-                        let tile_atlas = console.get_tile_atlas_rgba8();
+                        let tile_atlas = console.get_tile_atlas_2bpp();
 
                         for pixel in 0..(256 * 256) {
                             ppm_string.push_str(&format!(

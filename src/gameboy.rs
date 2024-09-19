@@ -174,11 +174,12 @@ impl Gameboy {
         }
     }
 
-    // returns a 256 * 256 image (32 * 32 tiles)
-    // the gameboy holds only 384 tiles, so that's 32 * 12
+    // returns a 256 * 256 atlas (32 * 32 tiles)
+    // with each pixel being an u8 encoding its value (0-3)
+    // the gameboy holds only 384 tiles, i.e. 32 * 12
     // so a good chunk of the atlas is empty
-    pub fn get_tile_atlas_rgba8(&self) -> Vec<u8> {
-        let mut img = vec![0u8; 4 * 256 * 256];
+    pub fn get_tile_atlas_2bpp(&self) -> Vec<u8> {
+        let mut img = vec![0u8; 256 * 256];
 
         // https://gbdev.io/pandocs/Tile_Data.html
         // each tile is 16 bytes in memory
@@ -207,15 +208,9 @@ impl Gameboy {
 
                     let pixel =
                         // tile start                              | pixel start
-                        (8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((y as usize) * 8 * 32) + (x as usize)) * 4;
+                        8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((y as usize) * 8 * 32) + (x as usize);
 
-                    img[pixel..(pixel + 4)].copy_from_slice(match value {
-                        0 => &[15, 15, 27, /* alpha */ 255],
-                        1 => &[86, 90, 117, /* alpha */ 255],
-                        2 => &[198, 183, 190, /* alpha */ 255],
-                        3 => &[250, 251, 246, /* alpha */ 255],
-                        _ => &[255, 0, 0, 255, /* alpha */ 255],
-                    })
+                    img[pixel] = value;
                 }
             }
         }
@@ -226,6 +221,7 @@ impl Gameboy {
     pub fn get_tile_map(&self) -> Vec<u8> {
         //https://gbdev.io/pandocs/Tile_Maps.html
         let mut indexes = [0; 32 * 32];
+        let palette = self.get_palette();
         //let _addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
 
         for i in 0..(32 * 32) {
@@ -242,7 +238,7 @@ impl Gameboy {
             }; */
         }
 
-        let atlas = self.get_tile_atlas_rgba8();
+        let atlas = self.get_tile_atlas_2bpp();
         let mut tilemap = vec![0u8; 4 * 256 * 256];
 
         // for each tile
@@ -256,15 +252,14 @@ impl Gameboy {
                     // tile start                              | pixel start
                     (8 * (tile % 32) + (8 * 8 * 32) * (tile / 32) + ((y as usize) * 8 * 32) + (x as usize)) * 4;
 
-                    let src_pixel = (8 * (index % 32)
+                    let atlas_pos = 8 * (index % 32)
                         + (8 * 8 * 32) * (index / 32)
                         + ((y as usize) * 8 * 32)
-                        + (x as usize))
-                        * 4;
+                        + (x as usize);
 
                     // https://lospec.com/palette-list/2bit-demichrome
                     tilemap[dst_pixel..(dst_pixel + 4)]
-                        .copy_from_slice(&atlas[src_pixel..(src_pixel + 4)]);
+                        .copy_from_slice(&palette[atlas[atlas_pos] as usize]);
                 }
             }
         }
@@ -279,6 +274,25 @@ impl Gameboy {
         let x = self.memory.read_byte(0xff43);
 
         return [x as u32, y as u32];
+    }
+
+    fn get_palette(&self) -> [[u8; 4]; 4] {
+        // https://gbdev.io/pandocs/Palettes.html
+        let palette_reg = self.memory.read_byte(0xFF47);
+
+        let mut palette = [[0; 4]; 4];
+        for id in 0..4 {
+            let color = (palette_reg >> (id * 2)) & 3;
+            palette[id] = match color {
+                0 => [250, 251, 246, /* alpha */ 255],
+                1 => [198, 183, 190, /* alpha */ 255],
+                2 => [86, 90, 117, /* alpha */ 255],
+                3 => [15, 15, 27, /* alpha */ 255],
+                _ => panic!(),
+            };
+        }
+
+        return palette;
     }
 
     fn execute_instruction(&mut self, instr: Instruction) -> Result<u64, EmulationError> {
