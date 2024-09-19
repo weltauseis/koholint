@@ -1,4 +1,5 @@
 use core::fmt;
+use std::fmt::format;
 
 use crate::{
     error::{EmulationError, EmulationErrorType},
@@ -70,6 +71,7 @@ pub enum Operation {
     RLCA,
     RRCA,
     SRL { x: Operand },
+    SLA { x: Operand },
     CP { y: Operand },
     DI,
     EI,
@@ -2144,6 +2146,80 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                         branch_cycles: None,
                     });
                 }
+                // sla b
+                0x20 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // sla c
+                0x21 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // sla d
+                0x22 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // sla e
+                0x23 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // sla h
+                0x24 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // sla l
+                0x25 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // sla (hl)
+                0x26 => {
+                    return Ok(Instruction {
+                        op: SLA {
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // sla a
+                0x27 => {
+                    return Ok(Instruction {
+                        op: SLA { x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
                 // rr d
                 0x1A => {
                     return Ok(Instruction {
@@ -3084,7 +3160,6 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
-
         // call c, imm16
         0xDC => {
             return Ok(Instruction {
@@ -3431,6 +3506,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RLCA => String::from("rlca"),
         Operation::RRCA => String::from("rrca"),
         Operation::SRL { x } => format!("srl {x}"),
+        Operation::SLA { x } => format!("sla {x}"),
         Operation::CP { y } => format!("cp {y}"),
         Operation::DI => String::from("di"),
         Operation::EI => String::from("ei"),
