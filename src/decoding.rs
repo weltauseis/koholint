@@ -2425,10 +2425,76 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                         branch_cycles: None,
                     });
                 }
+                // bit 7, b
+                0x78 => {
+                    return Ok(Instruction {
+                        op: BIT { bit: 7, src: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // bit 7, c
+                0x79 => {
+                    return Ok(Instruction {
+                        op: BIT { bit: 7, src: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // bit 7, d
+                0x7A => {
+                    return Ok(Instruction {
+                        op: BIT { bit: 7, src: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // bit 7, e
+                0x7B => {
+                    return Ok(Instruction {
+                        op: BIT { bit: 7, src: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
                 // bit 7, h
                 0x7C => {
                     return Ok(Instruction {
                         op: BIT { bit: 7, src: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // bit 7, l
+                0x7D => {
+                    return Ok(Instruction {
+                        op: BIT { bit: 7, src: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // bit 7, (hl)
+                0x7E => {
+                    return Ok(Instruction {
+                        op: BIT {
+                            bit: 7,
+                            src: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // bit 7, a
+                0x7F => {
+                    return Ok(Instruction {
+                        op: BIT { bit: 7, src: R8_A },
                         size: 2,
                         cycles: 8,
                         branch_cycles: None,
