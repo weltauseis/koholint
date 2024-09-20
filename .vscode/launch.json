@@ -21,11 +21,11 @@
                 }
             },
             "args": [
-                "roms/TETRIS.gb"
+                "roms/DR-MARIO.gb"
             ],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_LOG": "trace"
+                "RUST_LOG": "koholint_emulator=info"
             },
         },
         {

@@ -218,7 +218,48 @@ impl Gameboy {
         return img;
     }
 
-    pub fn get_tile_map(&self) -> Vec<u8> {
+    pub fn get_tile_atlas_rgba8(&self) -> Vec<u8> {
+        let mut img = vec![0u8; 256 * 256 * 4];
+        let palette = self.get_palette();
+
+        // https://gbdev.io/pandocs/Tile_Data.html
+        // each tile is 16 bytes in memory
+        // each couple of bytes encodes a line of the tile
+
+        // this whole thing is pretty convoluted but i don't think there's a better way,
+        // as the memory layout of the gameboy tiles is very different from that of "normal" images
+
+        // for each tile
+        for id in 0..384usize {
+            let address = (0x8000 + id * 16) as u16;
+
+            // for each line of the tile
+            for y in 0..8 {
+                let byte_1 = self.memory.read_byte(address + y * 2);
+                let byte_2 = self.memory.read_byte(address + y * 2 + 1);
+
+                for x in 0..8 {
+                    let mut value: u8 = 0;
+
+                    let bit_0 = byte_1 >> (7 - x) & 1;
+                    let bit_1 = byte_2 >> (7 - x) & 1;
+
+                    value |= bit_0;
+                    value |= bit_1 << 1;
+
+                    let pixel =
+                        // tile start                              | pixel start
+                        8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((y as usize) * 8 * 32) + (x as usize);
+
+                    img[(pixel * 4)..(pixel * 4 + 4)].copy_from_slice(&palette[value as usize]);
+                }
+            }
+        }
+
+        return img;
+    }
+
+    pub fn get_tile_map_rgba8(&self) -> Vec<u8> {
         //https://gbdev.io/pandocs/Tile_Maps.html
         let mut indexes = [0; 32 * 32];
         let palette = self.get_palette();
@@ -272,6 +313,33 @@ impl Gameboy {
         let x = self.memory.read_byte(0xff43);
 
         return [x as u32, y as u32];
+    }
+
+    pub fn get_obj_x_pos_buffer(&self) -> [u32; 40] {
+        let mut buffer = [0; 40];
+        for obj in 0..40 {
+            buffer[obj] = self.memory.read_byte(0xFE00 + (obj * 4) as u16) as u32;
+        }
+
+        return buffer;
+    }
+
+    pub fn get_obj_y_pos_buffer(&self) -> [u32; 40] {
+        let mut buffer = [0; 40];
+        for obj in 0..40 {
+            buffer[obj] = self.memory.read_byte(0xFE00 + 1 + (obj * 4) as u16) as u32;
+        }
+
+        return buffer;
+    }
+
+    pub fn get_obj_sprite_ids_buffer(&self) -> [u32; 40] {
+        let mut buffer = [0; 40];
+        for obj in 0..40 {
+            buffer[obj] = self.memory.read_byte(0xFE00 + 2 + (obj * 4) as u16) as u32;
+        }
+
+        return buffer;
     }
 
     fn get_palette(&self) -> [[u8; 4]; 4] {

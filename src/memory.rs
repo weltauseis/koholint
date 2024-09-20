@@ -196,6 +196,10 @@ impl Memory {
             0xD000..0xE000 => {
                 return self.switchable_wram[(address - 0xD000) as usize];
             }
+            // OAM
+            0xFE00..0xFEA0 => {
+                return self.oam[(address - 0xFE00) as usize];
+            }
             // MEMORY IO
             0xFF00..0xFF80 => {
                 // filtering the adress to warn for unimplemented things
@@ -313,8 +317,10 @@ impl Memory {
             }
             // OAM
             0xFE00..0xFEA0 => {
-                warn!("WRITE TO OAM");
                 self.oam[(address - 0xFE00) as usize] = value;
+                if value != 0 {
+                    warn!("non null write to OAM");
+                }
             }
             0xFEA0..0xFF00 => {
                 // Nintendo says use of this area is prohibited.

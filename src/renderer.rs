@@ -12,10 +12,18 @@ pub struct Renderer<'a> {
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     pub window: &'a mut Window,
-    render_pipeline: wgpu::RenderPipeline,
+    // tilemap rendering
+    tilemap_render_pipeline: wgpu::RenderPipeline,
     tile_map: wgpu::Texture,
     tile_map_bind_group: wgpu::BindGroup,
     scrolling_uniform_buffer: wgpu::Buffer,
+    // objects rendering
+    objects_render_pipeline: wgpu::RenderPipeline,
+    tile_atlas: wgpu::Texture,
+    objects_bind_group: wgpu::BindGroup,
+    x_pos_buffer: wgpu::Buffer,
+    y_pos_buffer: wgpu::Buffer,
+    sprite_ids_buffer: wgpu::Buffer,
 }
 
 impl<'a> Renderer<'a> {
@@ -163,55 +171,238 @@ impl<'a> Renderer<'a> {
             ],
         });
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("quad shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("tilemap_shader.wgsl").into()),
+        let tilemap_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("tilemap shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/tilemap_shader.wgsl").into()),
         });
 
-        let render_pipeline_layout =
+        let tilemap_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("render pipeline layout"),
+                label: Some("tilemap pipeline layout"),
                 bind_group_layouts: &[&tile_map_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::all(),
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Cw,
-                cull_mode: Some(wgpu::Face::Back),
-                unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
+        let tilemap_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("tilemap Pipeline"),
+                layout: Some(&tilemap_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &tilemap_shader,
+                    entry_point: "vs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &tilemap_shader,
+                    entry_point: "fs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::all(),
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Cw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    unclipped_depth: false,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+                cache: None,
+            });
+
+        // objects stuff
+        let x_pos_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("x pos buffer"),
+            size: 40 * 4,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
         });
+
+        let y_pos_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("x pos buffer"),
+            size: 40 * 4,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
+        let sprite_ids_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("x pos buffer"),
+            size: 40 * 4,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
+        let tile_atlas = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("tile atlas texture"),
+            size: wgpu::Extent3d {
+                width: 256,
+                height: 256,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let tile_atlas_view = tile_atlas.create_view(&wgpu::TextureViewDescriptor::default());
+        let tile_atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let objects_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("objects bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+
+        let objects_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("object bind group"),
+            layout: &objects_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&tile_atlas_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&tile_atlas_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(
+                        x_pos_buffer.as_entire_buffer_binding(),
+                    ),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Buffer(
+                        y_pos_buffer.as_entire_buffer_binding(),
+                    ),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::Buffer(
+                        sprite_ids_buffer.as_entire_buffer_binding(),
+                    ),
+                },
+            ],
+        });
+
+        let objects_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("objects shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/objects_shader.wgsl").into()),
+        });
+
+        let objects_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("objects pipeline layout"),
+                bind_group_layouts: &[&objects_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let objects_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("objects Pipeline"),
+                layout: Some(&objects_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &objects_shader,
+                    entry_point: "vs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &objects_shader,
+                    entry_point: "fs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::all(),
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Cw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    unclipped_depth: false,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+                cache: None,
+            });
 
         Self {
             window,
@@ -220,10 +411,16 @@ impl<'a> Renderer<'a> {
             queue,
             config,
             size,
-            render_pipeline,
+            tilemap_render_pipeline,
             tile_map,
             tile_map_bind_group,
             scrolling_uniform_buffer,
+            objects_render_pipeline,
+            tile_atlas,
+            objects_bind_group,
+            x_pos_buffer,
+            y_pos_buffer,
+            sprite_ids_buffer,
         }
     }
 
@@ -240,7 +437,7 @@ impl<'a> Renderer<'a> {
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                &console.get_tile_map(),
+                &console.get_tile_map_rgba8(),
                 wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * 256),
@@ -257,7 +454,45 @@ impl<'a> Renderer<'a> {
                 &self.scrolling_uniform_buffer,
                 0,
                 bytemuck::cast_slice(&console.get_scrolling()),
-            )
+            );
+
+            self.queue.write_texture(
+                wgpu::ImageCopyTexture {
+                    texture: &self.tile_atlas,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &console.get_tile_atlas_rgba8(),
+                wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * 256),
+                    rows_per_image: Some(256),
+                },
+                wgpu::Extent3d {
+                    width: 256,
+                    height: 256,
+                    depth_or_array_layers: 1,
+                },
+            );
+
+            self.queue.write_buffer(
+                &self.x_pos_buffer,
+                0,
+                bytemuck::cast_slice(&console.get_obj_x_pos_buffer()),
+            );
+
+            self.queue.write_buffer(
+                &self.y_pos_buffer,
+                0,
+                bytemuck::cast_slice(&console.get_obj_y_pos_buffer()),
+            );
+
+            self.queue.write_buffer(
+                &self.sprite_ids_buffer,
+                0,
+                bytemuck::cast_slice(&console.get_obj_sprite_ids_buffer()),
+            );
         }
 
         let output = self.surface.get_current_texture()?;
@@ -291,9 +526,13 @@ impl<'a> Renderer<'a> {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_pipeline(&self.tilemap_render_pipeline);
         render_pass.set_bind_group(0, &self.tile_map_bind_group, &[]);
         render_pass.draw(0..6, 0..1);
+
+        render_pass.set_pipeline(&self.objects_render_pipeline);
+        render_pass.set_bind_group(0, &self.objects_bind_group, &[]);
+        render_pass.draw(0..6, 0..40);
         drop(render_pass);
 
         self.queue.submit([encoder.finish()]);
