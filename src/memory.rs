@@ -204,6 +204,7 @@ impl Memory {
                         warn!("JOYPAD INPUT READ");
                         return 0x0F;
                     }
+                    0xFF40 => { /* lcd control byte */ }
                     0xFF42..=0xFF43 => { /* screen scrolling bytes,it's fine to access */ }
                     0xFF44..=0xFF45 => {
                         // LY indicates the current horizontal line
@@ -454,11 +455,11 @@ impl Memory {
     }
 
     // LCD control byte flags
-    /* pub fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
+    pub fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
         let lcd_ctrl = self.read_byte(0xFF40);
 
         return ((lcd_ctrl >> bit) & 1) == 1;
-    } */
+    }
 
     // Interrupts functions
     // https://gbdev.io/pandocs/Interrupts.html

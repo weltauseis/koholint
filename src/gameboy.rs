@@ -222,20 +222,18 @@ impl Gameboy {
         //https://gbdev.io/pandocs/Tile_Maps.html
         let mut indexes = [0; 32 * 32];
         let palette = self.get_palette();
-        //let _addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
+        let addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
 
         for i in 0..(32 * 32) {
             let index = self.memory.read_byte(0x9800 + i);
-            indexes[i as usize] = index as u32;
-            /* tilemap[i as usize] = if addressing_mode_bit {
-                mem_index as u32
+            indexes[i as usize] = if addressing_mode_bit {
+                // index is just the index, starting at tile 0
+                index as u32
             } else {
-                if (mem_index as usize) < 128 {
-                    256 + mem_index as u32
-                } else {
-                    255 - mem_index as u32
-                }
-            }; */
+                // index is signed, and the base tile is 256 (first tile of group 3)
+                let signed_index: i32 = i8::from_le_bytes(index.to_le_bytes()) as i32;
+                (256 + signed_index) as u32
+            };
         }
 
         let atlas = self.get_tile_atlas_2bpp();
@@ -288,7 +286,7 @@ impl Gameboy {
                 1 => [198, 183, 190, /* alpha */ 255],
                 2 => [86, 90, 117, /* alpha */ 255],
                 3 => [15, 15, 27, /* alpha */ 255],
-                _ => panic!(),
+                _ => unreachable!(),
             };
         }
 

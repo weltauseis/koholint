@@ -175,6 +175,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        // rlca
+        0x07 => {
+            return Ok(Instruction {
+                op: RLCA,
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
         // add hl, bc
         0x09 => {
             return Ok(Instruction {
