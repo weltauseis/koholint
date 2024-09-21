@@ -5,6 +5,7 @@ use crate::{
     cpu::CPU,
     decoding::{self, Instruction, Operand, Operation},
     error::{EmulationError, EmulationErrorType},
+    input::GBInputState,
     memory::Memory,
 };
 
@@ -77,6 +78,44 @@ impl Gameboy {
         self.update_misc();
 
         return Ok(cycles_elapsed);
+    }
+
+    pub fn update_input(&mut self, input_state: &GBInputState) {
+        let buttons = self.memory.input_buttons_selected();
+        let dpad = self.memory.input_dpad_selected();
+
+        let mut bits: u8 = 0x0F;
+        if buttons {
+            if input_state.right {
+                bits &= !0b1;
+            }
+            if input_state.left {
+                bits &= !(0b10);
+            }
+            if input_state.up {
+                bits &= !(0b100);
+            }
+            if input_state.down {
+                bits &= !(0b1000);
+            }
+        }
+
+        if dpad {
+            if input_state.a {
+                bits &= !(1);
+            }
+            if input_state.b {
+                bits &= !(0b10);
+            }
+            if input_state.select {
+                bits &= !(0b100);
+            }
+            if input_state.start {
+                bits &= !(0b1000);
+            }
+        }
+
+        self.memory.update_input_lower(bits);
     }
 
     fn handle_interrupts(&mut self) -> Result<(), EmulationError> {

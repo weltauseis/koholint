@@ -1,6 +1,7 @@
 use debugger::Debugger;
 use error::EmulationError;
 use gameboy::Gameboy;
+use input::{handle_input, GBInputState};
 use pollster::FutureExt;
 
 #[allow(dead_code)]
@@ -10,6 +11,7 @@ mod debugger;
 mod decoding;
 mod error;
 mod gameboy;
+mod input;
 #[allow(non_contiguous_range_endpoints)]
 mod memory;
 #[allow(dead_code)]
@@ -56,19 +58,10 @@ fn run(args: Vec<String>) -> Result<(), EmulationError> {
     let mut dots = 0;
     static DOTS_IN_FRAME: u64 = 70224;
     let mut frame_start = std::time::Instant::now();
+    let mut input = GBInputState::default();
     while !renderer.window().should_close() {
-        glfw.poll_events();
-        for (_, event) in glfw::flush_messages(&events) {
-            match event {
-                glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
-                    renderer.window.set_should_close(true)
-                }
-                glfw::WindowEvent::Key(glfw::Key::P, _, glfw::Action::Press, _) => {
-                    debugger.pause();
-                }
-                _ => {}
-            }
-        }
+        handle_input(&mut glfw, &mut renderer, &events, &mut debugger, &mut input);
+        console.update_input(&input);
 
         while dots < DOTS_IN_FRAME {
             dots += debugger.step(&mut console)?;

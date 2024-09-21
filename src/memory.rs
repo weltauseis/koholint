@@ -202,7 +202,7 @@ impl Memory {
                 match address {
                     0xFF00 => {
                         warn!("JOYPAD INPUT READ");
-                        return 0x0F;
+                        return self.io_hw[0];
                     }
                     0xFF40 => { /* lcd control byte */ }
                     0xFF42..=0xFF43 => { /* screen scrolling bytes,it's fine to access */ }
@@ -322,6 +322,11 @@ impl Memory {
             }
             // IO & MEMORY MAPPED HARDWARE REGISTERS
             0xFF00..0xFF80 => match address {
+                0xFF00 => {
+                    // this is the input register
+                    // only the upper bits are writeable
+                    self.io_hw[0] = (self.io_hw[0] & 0b0000_1111) | (value & 0b1111_0000);
+                }
                 0xFF01 => {
                     info!("WRITE TO SERIAL DATA REGISTER");
                 }
@@ -341,10 +346,15 @@ impl Memory {
                     // and should not be overwritten by a call to write_byte
                     self.io_hw[0x41] = (self.io_hw[0x41] & 0b_0000_0111) | (value & 0b_1111_1000);
                 }
+                0xFF46 => {
+                    warn!("DMA TRANSFER REQUESTED");
+                    // FIXME : this needs to be implemented for objects to work
+                }
                 0xFF0F |            // IF 
                 0xFF40 |            // LCD CONTROL
                 0xFF42 | 0xFF43 |   // SCX & SCY
                 0xFF47 |            // PALETTE
+                0xFF4A | 0xFF4B |   // WINDOW X & Y
                 0xFF50 |            // DISABLES BOOT ROM
                 0xFF05..=0xFF07     // TIMA, TMA, TAC
                 => {
@@ -354,6 +364,7 @@ impl Memory {
                 }
                 0xFF48 | 0xFF49 => {
                     info!("WRITE TO OBJ PALETTE REGISTER");
+                    // FIXME : this is important for object palette
                 }
                 0xFF7F => {
                     // this register is supposed to be unused but dr mario somehow writes to it
@@ -361,10 +372,10 @@ impl Memory {
                     warn!("WEIRD DR MARIO WRITE AT 0xFF7F");
                 }
                 _ => {
-                    /* return Err(EmulationError {
+                    return Err(EmulationError {
                         ty: EmulationErrorType::UnauthorizedWrite(address),
                         pc: None,
-                    }); */
+                    });
                 }
             },
             // HRAM
@@ -498,6 +509,22 @@ impl Memory {
         //          Enable  |   Clock Select
 
         return self.read_byte(0xFF07) >> 2 & 1 == 1;
+    }
+
+    // Input
+
+    pub fn input_buttons_selected(&self) -> bool {
+        return (self.io_hw[0] >> 5) & 1 == 1;
+    }
+
+    pub fn input_dpad_selected(&self) -> bool {
+        return (self.io_hw[0] >> 4) & 1 == 1;
+    }
+
+    pub fn update_input_lower(&mut self, inputs: u8) {
+        assert!(inputs < 16);
+
+        self.io_hw[0] = (self.io_hw[0] & 0b_1111_0000) | inputs;
     }
 }
 
