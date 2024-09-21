@@ -61,6 +61,7 @@ pub enum Operation {
     AND { y: Operand },
     BIT { bit: u8, src: Operand },
     RES { bit: u8, x: Operand },
+    SET { bit: u8, x: Operand },
     SWAP { x: Operand },
     RL { x: Operand },
     RR { x: Operand },
@@ -3634,6 +3635,606 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                         branch_cycles: None,
                     });
                 }
+                // set 0, b
+                0xC0 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, c
+                0xC1 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, d
+                0xC2 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, e
+                0xC3 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, h
+                0xC4 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, l
+                0xC5 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, (hl)
+                0xC6 => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 0,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 0, a
+                0xC7 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 0, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, b
+                0xC8 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, c
+                0xC9 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, d
+                0xCA => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, e
+                0xCB => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, h
+                0xCC => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, l
+                0xCD => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, (hl)
+                0xCE => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 1,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 1, a
+                0xCF => {
+                    return Ok(Instruction {
+                        op: SET { bit: 1, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, b
+                0xD0 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, c
+                0xD1 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, d
+                0xD2 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, e
+                0xD3 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, h
+                0xD4 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, l
+                0xD5 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, (hl)
+                0xD6 => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 2,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 2, a
+                0xD7 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 2, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, b
+                0xD8 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, c
+                0xD9 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, d
+                0xDA => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, e
+                0xDB => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, h
+                0xDC => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, l
+                0xDD => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, (hl)
+                0xDE => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 3,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 3, a
+                0xDF => {
+                    return Ok(Instruction {
+                        op: SET { bit: 3, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, b
+                0xE0 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, c
+                0xE1 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, d
+                0xE2 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, e
+                0xE3 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, h
+                0xE4 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, l
+                0xE5 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, (hl)
+                0xE6 => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 4,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 4, a
+                0xE7 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 4, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, b
+                0xE8 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, c
+                0xE9 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, d
+                0xEA => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, e
+                0xEB => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, h
+                0xEC => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, l
+                0xED => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, (hl)
+                0xEE => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 5,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 5, a
+                0xEF => {
+                    return Ok(Instruction {
+                        op: SET { bit: 5, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, b
+                0xF0 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, c
+                0xF1 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, d
+                0xF2 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, e
+                0xF3 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, h
+                0xF4 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, l
+                0xF5 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, (hl)
+                0xF6 => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 6,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 6, a
+                0xF7 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 6, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, b
+                0xF8 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_B },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, c
+                0xF9 => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_C },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, d
+                0xFA => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_D },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, e
+                0xFB => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_E },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, h
+                0xFC => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_H },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, l
+                0xFD => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_L },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, (hl)
+                0xFE => {
+                    return Ok(Instruction {
+                        op: SET {
+                            bit: 7,
+                            x: PTR(Box::new(R16_HL)),
+                        },
+                        size: 2,
+                        cycles: 16,
+                        branch_cycles: None,
+                    });
+                }
+                // set 7, a
+                0xFF => {
+                    return Ok(Instruction {
+                        op: SET { bit: 7, x: R8_A },
+                        size: 2,
+                        cycles: 8,
+                        branch_cycles: None,
+                    });
+                }
                 _ => {
                     return Err(EmulationError {
                         ty: EmulationErrorType::UnhandledInstructionDecode(0xCB00 + imm8 as u16),
@@ -4096,6 +4697,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::AND { y } => format!("and a, {y}"),
         Operation::BIT { bit, src: r8 } => format!("bit {bit}, {r8}"),
         Operation::RES { bit, x: src } => format!("res {bit}, {src}"),
+        Operation::SET { bit, x } => format!("set {bit}, {x}"),
         Operation::SWAP { x } => format!("swap {x}"),
         Operation::RL { x } => format!("rl {x}"),
         Operation::RR { x } => format!("rr {x}"),

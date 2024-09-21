@@ -50,32 +50,39 @@ impl Gameboy {
     // functions
 
     pub fn step(&mut self) -> Result<u64, EmulationError> {
+        let cycles_elapsed;
+
         if self.halted {
             // FIXME : handle this better
             if self.memory.interrupt_pending_and_enabled() {
                 self.halted = false;
                 self.handle_interrupts()?;
-                return Ok(4);
             }
 
-            return Ok(4);
+            cycles_elapsed = 4;
+        } else {
+            let instr = decoding::decode_next_instruction(&self)?;
+            let pc_before = self.cpu.read_program_counter();
+
+            cycles_elapsed = self.execute_instruction(instr).map_err(|mut e| {
+                // some errors that happen for example in memory access
+                // can't know the instruction that called them
+                // so we attach that info here
+                if e.pc.is_none() {
+                    e.pc = Some(pc_before);
+                }
+                e
+            })?;
         }
-
-        let instr = decoding::decode_next_instruction(&self)?;
-        let pc_before = self.cpu.read_program_counter();
-
-        let cycles_elapsed = self.execute_instruction(instr).map_err(|mut e| {
-            // some errors that happen for example in memory access
-            // can't know the instruction that called them
-            // so we attach that info here
-            if e.pc.is_none() {
-                e.pc = Some(pc_before);
-            }
-            e
-        })?;
 
         self.handle_interrupts()?;
         self.update_misc();
+
+        // update timing infos
+        self.div_cycles += cycles_elapsed;
+        self.ly_cycles += cycles_elapsed;
+        self.tima_cycles += cycles_elapsed;
+        self.vblank_cycles += cycles_elapsed;
 
         return Ok(cycles_elapsed);
     }
@@ -116,6 +123,9 @@ impl Gameboy {
         }
 
         self.memory.update_input_lower(bits);
+        if bits < 0x0F {
+            self.memory.request_interrupt(4);
+        }
     }
 
     fn handle_interrupts(&mut self) -> Result<(), EmulationError> {
@@ -783,6 +793,25 @@ impl Gameboy {
 
                 // no flags
             }
+            Operation::SET { bit, x } => {
+                // set bit in register / memory to 1
+                match x {
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => {
+                        let byte = self.cpu.read_r8(&x);
+                        self.cpu.write_r8(&x, byte | (1 << bit));
+                    }
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let address = self.cpu.read_hl_register();
+                            let byte = self.memory.read_byte(address);
+                            self.memory.write_byte(address, byte | (1 << bit))?;
+                        }
+                        _ => panic!("(CRITICAL) RES : ILLEGAL POINTER {ptr:?} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) RES : ILLEGAL OPERAND {x:?} at {pc:#06X}"),
+                }
+                // no flags
+            }
             Operation::SWAP { x } => {
                 // swaps the upper 4 bits and the lower 4 ones
 
@@ -1368,12 +1397,6 @@ impl Gameboy {
                 });
             }
         }
-
-        // update timing infos
-        self.div_cycles += cycles_elapsed;
-        self.ly_cycles += cycles_elapsed;
-        self.tima_cycles += cycles_elapsed;
-        self.vblank_cycles += cycles_elapsed;
 
         return Ok(cycles_elapsed);
     }

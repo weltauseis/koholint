@@ -201,7 +201,6 @@ impl Memory {
                 // filtering the adress to warn for unimplemented things
                 match address {
                     0xFF00 => {
-                        warn!("JOYPAD INPUT READ");
                         return self.io_hw[0];
                     }
                     0xFF40 => { /* lcd control byte */ }
