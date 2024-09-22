@@ -364,7 +364,7 @@ impl Gameboy {
         return [x as u32, y as u32];
     }
 
-    pub fn get_obj_x_pos_buffer(&self) -> [u32; 40] {
+    pub fn get_obj_y_pos_buffer(&self) -> [u32; 40] {
         let mut buffer = [0; 40];
         for obj in 0..40 {
             buffer[obj] = self.memory.read_byte(0xFE00 + (obj * 4) as u16) as u32;
@@ -373,7 +373,7 @@ impl Gameboy {
         return buffer;
     }
 
-    pub fn get_obj_y_pos_buffer(&self) -> [u32; 40] {
+    pub fn get_obj_x_pos_buffer(&self) -> [u32; 40] {
         let mut buffer = [0; 40];
         for obj in 0..40 {
             buffer[obj] = self.memory.read_byte(0xFE00 + 1 + (obj * 4) as u16) as u32;

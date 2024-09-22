@@ -61,10 +61,9 @@ fn run(args: Vec<String>) -> Result<(), EmulationError> {
     let mut input = GBInputState::default();
     while !renderer.window().should_close() {
         handle_input(&mut glfw, &mut renderer, &events, &mut debugger, &mut input);
-        console.update_input(&input);
-
         while dots < DOTS_IN_FRAME {
             dots += debugger.step(&mut console)?;
+            console.update_input(&input);
         }
         dots = 0;
 

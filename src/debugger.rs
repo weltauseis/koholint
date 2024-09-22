@@ -137,6 +137,12 @@ impl Debugger {
                             "sp" => {
                                 println!("sp : {:#06X}", console.cpu().read_stack_pointer())
                             }
+                            "oam" => {
+                                for i in 0..160 {
+                                    print!("{} ", console.memory().read_byte(0xFE00 + i));
+                                }
+                                println!("");
+                            }
                             _ => match u16::from_str_radix(&name, 16) {
                                 Ok(address) => {
                                     let byte = console.memory().read_byte(address);
@@ -209,7 +215,7 @@ impl Debugger {
                     "dump" => {
                         let mut ppm_string = String::from("P3\n256 256\n255\n");
 
-                        let tile_atlas = console.get_tile_atlas_2bpp();
+                        let tile_atlas = console.get_tile_atlas_rgba8();
 
                         for pixel in 0..(256 * 256) {
                             ppm_string.push_str(&format!(

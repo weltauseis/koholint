@@ -2,8 +2,8 @@ const SCREEN_W: f32 = 160.0;
 const SCREEN_H: f32 = 144.0;
 const OBJ_W_PXL: f32 = 8.0;
 
-const OBJ_W: f32 = 1.0 / (SCREEN_W / OBJ_W_PXL);
-const OBJ_H: f32 = 1.0 / (SCREEN_H / OBJ_W_PXL);
+const OBJ_W: f32 = 1.0 / (SCREEN_W / OBJ_W_PXL) * 2.0;
+const OBJ_H: f32 = 1.0 / (SCREEN_H / OBJ_W_PXL) * 2.0;
 
 var<private> v_positions: array<vec2<f32>, 6> = array<vec2<f32>, 6> (
     vec2<f32>(-1.0, 1.0),
@@ -17,11 +17,11 @@ var<private> v_positions: array<vec2<f32>, 6> = array<vec2<f32>, 6> (
 // texture coordinates are flipped on the y axis
 var<private> v_texcoords: array<vec2<f32>, 6> = array<vec2<f32>, 6> (
     vec2<f32>(0.0, 0.0),
-    vec2<f32>(0.625, 0.5625),
-    vec2<f32>(0.0, 0.5625),
+    vec2<f32>(1.0/32.0, 1.0/32.0),
+    vec2<f32>(0.0, 1.0/32.0),
     vec2<f32>(0.0, 0.0),
-    vec2<f32>(0.625, 0.0),
-    vec2<f32>(0.625, 0.5625),
+    vec2<f32>(1.0/32.0, 0.0),
+    vec2<f32>(1.0/32.0, 1.0/32.0),
 );
 
 struct VertexOutput {
@@ -41,13 +41,15 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32, @builtin(instance_index)
     var out: VertexOutput;
 
     var clip_position = (v_positions[in_vertex_index]);
-    clip_position += vec2<f32>(-(8.0/160.0), (16.0/144.0));
+    clip_position += vec2<f32>(-(8.0/160.0) * 2.0, (16.0/144.0) * 2.0);
 
-    var x_pos = x_pos_buffer[in_instance_index];
-    var y_pos = y_pos_buffer[in_instance_index];
-    clip_position += vec2<f32>(f32(x_pos) * (1.0 / 160), f32(y_pos) * (1.0 / 144));
+    let x_pos = x_pos_buffer[in_instance_index];
+    let y_pos = y_pos_buffer[in_instance_index];
+    clip_position += vec2<f32>(f32(x_pos) * (2.0 / 160), -f32(y_pos) * (2.0 / 144));
 
     var texcoord = (v_texcoords[in_vertex_index]);
+    let sprite_id = sprite_ids_buffer[in_instance_index];
+    texcoord += vec2<f32>((1.0/32.0) * f32(sprite_id / 32), (1.0/32.0) * f32(sprite_id % 32));
 
     out.clip_position = vec4<f32>(clip_position, 0.0, 1.0);
     out.texcoord = texcoord;

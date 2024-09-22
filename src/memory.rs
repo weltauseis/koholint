@@ -28,7 +28,7 @@ pub struct Memory {
 impl Memory {
     // constructor
     pub fn new() -> Memory {
-        return Memory {
+        let mut mem = Memory {
             // https://gbdev.gg8.se/wiki/articles/Gameboy_Bootstrap_ROM
             // i don't think it is illegal to include this here
             boot_rom: [
@@ -65,6 +65,10 @@ impl Memory {
             mbc: MBC::NONE,
             selected_rom_bank: 1,
         };
+
+        mem.io_hw[0] = 0b00110000;
+
+        return mem;
     }
 
     pub fn load_rom(&mut self, rom: Vec<u8>) {
@@ -352,8 +356,11 @@ impl Memory {
                     self.io_hw[0x41] = (self.io_hw[0x41] & 0b_0000_0111) | (value & 0b_1111_1000);
                 }
                 0xFF46 => {
-                    warn!("DMA TRANSFER REQUESTED");
-                    // FIXME : this needs to be implemented for objects to work
+                    //warn!("DMA TRANSFER REQUESTED");
+                    let start_adress = (value as u16) * 0x100;
+                    for i in 0..160u16 {
+                        self.oam[i as usize] = self.read_byte(start_adress + i);
+                    }
                 }
                 0xFF0F |            // IF 
                 0xFF40 |            // LCD CONTROL
@@ -519,11 +526,11 @@ impl Memory {
     // Input
 
     pub fn input_buttons_selected(&self) -> bool {
-        return (self.io_hw[0] >> 5) & 1 == 1;
+        return (self.io_hw[0] >> 5) & 1 == 0;
     }
 
     pub fn input_dpad_selected(&self) -> bool {
-        return (self.io_hw[0] >> 4) & 1 == 1;
+        return (self.io_hw[0] >> 4) & 1 == 0;
     }
 
     pub fn update_input_lower(&mut self, inputs: u8) {

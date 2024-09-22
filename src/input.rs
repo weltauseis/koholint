@@ -69,16 +69,16 @@ pub fn handle_input(
                 input_state.down = false;
             }
             glfw::WindowEvent::Key(glfw::Key::Z, _, glfw::Action::Press, _) => {
-                input_state.a = true;
-            }
-            glfw::WindowEvent::Key(glfw::Key::Z, _, glfw::Action::Release, _) => {
-                input_state.a = false;
-            }
-            glfw::WindowEvent::Key(glfw::Key::X, _, glfw::Action::Press, _) => {
                 input_state.b = true;
             }
-            glfw::WindowEvent::Key(glfw::Key::X, _, glfw::Action::Release, _) => {
+            glfw::WindowEvent::Key(glfw::Key::Z, _, glfw::Action::Release, _) => {
                 input_state.b = false;
+            }
+            glfw::WindowEvent::Key(glfw::Key::X, _, glfw::Action::Press, _) => {
+                input_state.a = true;
+            }
+            glfw::WindowEvent::Key(glfw::Key::X, _, glfw::Action::Release, _) => {
+                input_state.a = false;
             }
             _ => {}
         }
