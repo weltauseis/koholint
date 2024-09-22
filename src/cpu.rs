@@ -113,7 +113,10 @@ impl CPU {
             }
             Operand::R16_AF => {
                 self.a = bytes[1];
-                self.f = bytes[0];
+                // the lower bits in the flags register should always be 0
+                // bc it's not a real register, the lower 4 bits don't actually exist
+                // so we zero them out in case something was popped into them
+                self.f = bytes[0] & 0xF0;
             }
             Operand::R16_HL | Operand::R16_HLD => {
                 self.h = bytes[1];
@@ -134,6 +137,10 @@ impl CPU {
 
     pub fn write_a_register(&mut self, value: u8) {
         self.a = value;
+    }
+
+    pub fn read_f_register(&self) -> u8 {
+        return self.f;
     }
 
     pub fn read_b_register(&self) -> u8 {

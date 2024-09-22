@@ -1,5 +1,4 @@
 use core::fmt;
-use std::fmt::format;
 
 use crate::{
     error::{EmulationError, EmulationErrorType},

@@ -137,6 +137,16 @@ impl Debugger {
                             "sp" => {
                                 println!("sp : {:#06X}", console.cpu().read_stack_pointer())
                             }
+                            "f" => {
+                                println!(
+                                    "f : {:#10b} (Z:{} N:{} H:{} C:{})",
+                                    console.cpu().read_f_register(),
+                                    console.cpu().read_z_flag(),
+                                    console.cpu().read_n_flag(),
+                                    console.cpu().read_h_flag(),
+                                    console.cpu().read_c_flag()
+                                )
+                            }
                             "oam" => {
                                 for i in 0..40 {
                                     print!(
