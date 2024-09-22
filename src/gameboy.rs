@@ -787,15 +787,20 @@ impl Gameboy {
 
                 let a = self.cpu.read_a_register();
                 let carry = if self.cpu.read_c_flag() { 1 } else { 0 };
-                let result = a.wrapping_add(value + carry);
+                let result = a.wrapping_add(value).wrapping_add(carry);
                 self.cpu.write_a_register(result);
 
                 // flags : z 0 h c
                 self.cpu.write_z_flag(result == 0);
                 self.cpu.write_n_flag(false);
+                self.cpu.write_h_flag(
+                    // lots of "as usize" here bc we need to be careful that value + carry doesn't cause an overflow
+                    // that happens when value = 255
+                    // FIXME : there is probably a better way to do that
+                    ((a as usize) & 0xF) + ((value as usize + carry as usize) & 0xF) > 0xF,
+                );
                 self.cpu
-                    .write_h_flag((a & 0xF) + ((value + carry) & 0xF) > 0xF);
-                self.cpu.write_c_flag(a < (value + carry));
+                    .write_c_flag((a as usize) < (value as usize + carry as usize));
             }
             Operation::SUB { y } => {
                 // sub does a - y and stores the result in a
@@ -824,6 +829,39 @@ impl Gameboy {
                 self.cpu.write_n_flag(true);
                 self.cpu.write_h_flag((a & 0xF) < (value & 0xF));
                 self.cpu.write_c_flag(a < value);
+            }
+            Operation::SBC { y } => {
+                // like sub, but also subtracts the carry flag (hence the "c")
+
+                let value = match y {
+                    // add 8-bit register
+                    R8_A | R8_B | R8_C | R8_D | R8_E | R8_H | R8_L => self.cpu.read_r8(&y),
+                    // add imm8
+                    IMM8(imm8) => imm8,
+                    // add from memory with pointer in hl
+                    PTR(ptr) => match *ptr {
+                        R16_HL => {
+                            let hl = self.cpu.read_r16(&ptr);
+                            self.memory.read_byte(hl)
+                        }
+                        _ => panic!("(CRITICAL) SBC : ILLEGAL POINTER {ptr} at {pc:#06X}"),
+                    },
+                    _ => panic!("(CRITICAL) SBC : ILLEGAL SECOND OPERAND {y} at {pc:#06X}"),
+                };
+
+                let a = self.cpu.read_a_register();
+                let carry = if self.cpu.read_c_flag() { 1 } else { 0 };
+                let result = a.wrapping_sub(value).wrapping_sub(carry);
+                self.cpu.write_a_register(result);
+
+                // flags : z 0 h c
+                self.cpu.write_z_flag(result == 0);
+                self.cpu.write_n_flag(true);
+                self.cpu.write_h_flag(
+                    ((a & 0xF).wrapping_sub(value & 0xF).wrapping_sub(carry)) & 0x10 == 0x10,
+                );
+                self.cpu
+                    .write_c_flag((a as usize) < (value as usize + carry as usize));
             }
             Operation::XOR { y } => {
                 // xor is always done with the a register as first operand (x)

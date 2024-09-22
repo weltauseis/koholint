@@ -56,6 +56,7 @@ pub enum Operation {
     ADD { x: Operand, y: Operand },
     SUB { y: Operand },
     ADC { y: Operand },
+    SBC { y: Operand },
     OR { y: Operand },
     XOR { y: Operand },
     AND { y: Operand },
@@ -1711,6 +1712,80 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
         0x97 => {
             return Ok(Instruction {
                 op: SUB { y: R8_A },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, b
+        0x98 => {
+            return Ok(Instruction {
+                op: SBC { y: R8_B },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, c
+        0x99 => {
+            return Ok(Instruction {
+                op: SBC { y: R8_C },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, d
+        0x9A => {
+            return Ok(Instruction {
+                op: SBC { y: R8_D },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, e
+        0x9B => {
+            return Ok(Instruction {
+                op: SBC { y: R8_E },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, h
+        0x9C => {
+            return Ok(Instruction {
+                op: SBC { y: R8_H },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, l
+        0x9D => {
+            return Ok(Instruction {
+                op: SBC { y: R8_L },
+                size: 1,
+                cycles: 4,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, (hl)
+        0x9E => {
+            return Ok(Instruction {
+                op: SBC {
+                    y: PTR(Box::new(R16_HL)),
+                },
+                size: 1,
+                cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        // sbc a, a
+        0x9F => {
+            return Ok(Instruction {
+                op: SBC { y: R8_A },
                 size: 1,
                 cycles: 4,
                 branch_cycles: None,
@@ -4692,6 +4767,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::ADD { x, y } => format!("add {x}, {y}"),
         Operation::ADC { y } => format!("adc a, {y}"),
         Operation::SUB { y } => format!("sub a, {y}"),
+        Operation::SBC { y } => format!("sbc a, {y}"),
         Operation::OR { y } => format!("or a, {y}"),
         Operation::XOR { y } => format!("xor a, {y}"),
         Operation::AND { y } => format!("and a, {y}"),
