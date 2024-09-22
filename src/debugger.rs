@@ -138,8 +138,14 @@ impl Debugger {
                                 println!("sp : {:#06X}", console.cpu().read_stack_pointer())
                             }
                             "oam" => {
-                                for i in 0..160 {
-                                    print!("{} ", console.memory().read_byte(0xFE00 + i));
+                                for i in 0..40 {
+                                    print!(
+                                        "{} {} {} {} | ",
+                                        console.memory().read_byte(0xFE00 + i * 4 + 0),
+                                        console.memory().read_byte(0xFE00 + i * 4 + 1),
+                                        console.memory().read_byte(0xFE00 + i * 4 + 2),
+                                        console.memory().read_byte(0xFE00 + i * 4 + 3),
+                                    );
                                 }
                                 println!("");
                             }

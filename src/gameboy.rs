@@ -1,5 +1,5 @@
 use core::panic;
-use log::{info, warn};
+use log::{debug, info, warn};
 
 use crate::{
     cpu::CPU,
@@ -9,16 +9,22 @@ use crate::{
     memory::Memory,
 };
 
+const SCREEN_W: usize = 160;
+const SCREEN_H: usize = 144;
+const BYTES_PER_PIXELS: usize = 4; // rgba_u8
+const TILEMAP_W: usize = 256;
+
 pub struct Gameboy {
     cpu: CPU,
     memory: Memory,
     // keeps track of cycles elapsed to update various registers
-    div_cycles: u64,    // DIV TIMER
-    ly_cycles: u64,     // LINE Y
-    tima_cycles: u64,   // MAIN TIMER
-    vblank_cycles: u64, // VBLANK INTERRUPT
-    vblank_already_req: bool,
+    div_cycles: u64,  // DIV TIMER
+    ly_cycles: u64,   // LINE Y
+    tima_cycles: u64, // MAIN TIMER
     halted: bool,
+    // rendering
+    tilemap: Box<[u8; TILEMAP_W * TILEMAP_W * BYTES_PER_PIXELS]>,
+    framebuffer: Box<[u8; SCREEN_W * SCREEN_H * BYTES_PER_PIXELS]>,
 }
 
 impl Gameboy {
@@ -32,9 +38,9 @@ impl Gameboy {
             div_cycles: 0,
             ly_cycles: 0,
             tima_cycles: 0,
-            vblank_cycles: 0,
-            vblank_already_req: false,
             halted: false,
+            tilemap: Box::new([0; TILEMAP_W * TILEMAP_W * BYTES_PER_PIXELS]),
+            framebuffer: Box::new([0; SCREEN_W * SCREEN_H * BYTES_PER_PIXELS]),
         };
     }
 
@@ -82,7 +88,6 @@ impl Gameboy {
         self.div_cycles += cycles_elapsed;
         self.ly_cycles += cycles_elapsed;
         self.tima_cycles += cycles_elapsed;
-        self.vblank_cycles += cycles_elapsed;
 
         return Ok(cycles_elapsed);
     }
@@ -136,7 +141,7 @@ impl Gameboy {
         // interrupts are priority-based, so we need to check in order
         // VBLANK
         if self.memory.is_interrupt_enabled(0) && self.memory.is_interrupt_requested(0) {
-            info!("VBLANK INTERRUPT");
+            debug!("VBLANK INTERRUPT");
             self.cpu.disable_interrupts();
             self.memory.clear_interrupt(0);
             self.push_word(self.cpu.read_program_counter())?;
@@ -198,10 +203,19 @@ impl Gameboy {
         }
 
         // LY register
+        if !self.memory.is_lcd_enabled() {
+            self.ly_cycles = 0
+        };
         if self.ly_cycles >= (80 + 172 + 204) {
             self.ly_cycles -= 80 + 172 + 204;
 
             self.memory.increment_ly();
+            self.draw_current_line();
+
+            if self.memory.read_byte(0xFF44) == 144 {
+                // V-BLANK INTERRUPT
+                self.memory.request_interrupt(0);
+            }
         }
 
         // LY - LYC compare : https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
@@ -209,17 +223,82 @@ impl Gameboy {
         let lyc = self.memory.read_byte(0xFF45);
         self.memory.update_lcd_stat_lcy_eq_ly(ly == lyc);
         // FIXME : update the PPU mode too : https://gbdev.io/pandocs/STAT.html#ff41--stat-lcd-status
+    }
 
-        // VBLANK interrupt
+    pub fn get_framebuffer(&self) -> &[u8] {
+        return &(*self.framebuffer);
+    }
 
-        if self.vblank_cycles > 4560 && !self.vblank_already_req {
-            self.vblank_already_req = true;
-            self.memory.request_interrupt(0);
+    fn draw_current_line(&mut self) {
+        let line: usize = self.memory.read_byte(0xFF44) as usize;
+        if line >= SCREEN_H {
+            //v-blank period
+            return;
         }
 
-        if self.vblank_cycles > 70224 {
-            self.vblank_cycles = 0;
-            self.vblank_already_req = false;
+        if !self.memory.is_lcd_enabled() {
+            // screen turned off
+            self.framebuffer[(line * SCREEN_W * BYTES_PER_PIXELS)
+                ..(line * SCREEN_W * BYTES_PER_PIXELS + SCREEN_W * BYTES_PER_PIXELS)]
+                .copy_from_slice(&[30; SCREEN_W * BYTES_PER_PIXELS]);
+            return;
+        }
+
+        if line == 0 {
+            // we just returned from a v-blank period where vram might have been modified
+            // so the tilemap needs to be updated
+            self.update_tile_map();
+        }
+
+        // first draw the tilemap at this line
+
+        // the tilemap is 256 * 256, but the screen is only 160 * 144
+        // so the scrolling registers tell us the top left corner pixel coordinates
+        // of the screen view into the tilemap
+        let (scroll_x, scroll_y) = self.memory.read_scrolling_registers();
+
+        let tilemap_y = (line + scroll_y) % 256;
+        for screen_x in 0..160 {
+            let tilemap_x: usize = (screen_x + scroll_x) % 256;
+
+            self.framebuffer[(line * SCREEN_W + screen_x) * BYTES_PER_PIXELS] =
+                self.tilemap[(tilemap_y * 256 + tilemap_x) * BYTES_PER_PIXELS];
+            self.framebuffer[(line * SCREEN_W + screen_x) * BYTES_PER_PIXELS + 1] =
+                self.tilemap[(tilemap_y * 256 + tilemap_x) * BYTES_PER_PIXELS + 1];
+            self.framebuffer[(line * SCREEN_W + screen_x) * BYTES_PER_PIXELS + 2] =
+                self.tilemap[(tilemap_y * 256 + tilemap_x) * BYTES_PER_PIXELS + 2];
+            self.framebuffer[(line * SCREEN_W + screen_x) * BYTES_PER_PIXELS + 3] =
+                self.tilemap[(tilemap_y * 256 + tilemap_x) * BYTES_PER_PIXELS + 3];
+        }
+
+        // then we can draw the objects
+        for obj in 0..40 {
+            // the stored value is actually the screen y position + 16
+            // y_pos is between -16 and SCREEN_H : sprites can be outside the screen
+            // placing a sprite outside the screen (leaving the x & y pos bytes to 0) is actually
+            // how you're meant to "disable" it being dsrawn
+            let y_pos = self.memory.read_byte(0xFE00 + obj * 4) as isize - 16;
+
+            // if the current line doesn't intersect the sprite, don't bother trying to draw it
+            if !(y_pos..(y_pos + 8)).contains(&(line as isize)) {
+                continue;
+            }
+
+            // same thing for x_pos: it is between -8 and SCREEN_W
+            let x_pos = self.memory.read_byte(0xFE00 + obj * 4 + 1) as isize - 8;
+            for x_pxl in 0..8 {
+                // sprites can be half-outside and half-inside the screen
+                if x_pos + (x_pxl as isize) >= 0 {
+                    self.framebuffer
+                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS] = 255;
+                    self.framebuffer
+                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS + 1] = 0;
+                    self.framebuffer
+                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS + 2] = 0;
+                    self.framebuffer
+                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS + 3] = 255;
+                }
+            }
         }
     }
 
@@ -308,11 +387,11 @@ impl Gameboy {
         return img;
     }
 
-    pub fn get_tile_map_rgba8(&self) -> Vec<u8> {
+    pub fn update_tile_map(&mut self) {
         //https://gbdev.io/pandocs/Tile_Maps.html
         let mut indexes = [0; 32 * 32];
         let palette = self.get_palette();
-        let addressing_mode_bit = self.memory.read_lcd_ctrl_flag(4);
+        let addressing_mode_bit = self.memory.is_bg_tile_addressing_mode_normal();
 
         for i in 0..(32 * 32) {
             let index = self.memory.read_byte(0x9800 + i);
@@ -327,7 +406,6 @@ impl Gameboy {
         }
 
         let atlas = self.get_tile_atlas_2bpp();
-        let mut tilemap = vec![0u8; 4 * 256 * 256];
 
         // for each tile
         for tile in 0..(32 * 32) {
@@ -346,24 +424,15 @@ impl Gameboy {
                         + (x as usize);
 
                     // https://lospec.com/palette-list/2bit-demichrome
-                    tilemap[dst_pixel..(dst_pixel + 4)]
+                    self.tilemap[dst_pixel..(dst_pixel + 4)]
                         .copy_from_slice(&palette[atlas[atlas_pos] as usize]);
                 }
             }
         }
-
-        return tilemap;
     }
 
     // FIXME : LCD is always turned on for now, in reality it depends on
     // a certain byte in memory : 	LD ($FF00+$40),A	; $005d  Turn on LCD, showing Background
-    pub fn get_scrolling(&self) -> [u32; 2] {
-        let y = self.memory.read_byte(0xff42);
-        let x = self.memory.read_byte(0xff43);
-
-        return [x as u32, y as u32];
-    }
-
     pub fn get_obj_y_pos_buffer(&self) -> [u32; 40] {
         let mut buffer = [0; 40];
         for obj in 0..40 {

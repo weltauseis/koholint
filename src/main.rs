@@ -56,7 +56,7 @@ fn run(args: Vec<String>) -> Result<(), EmulationError> {
 
     //
     let mut dots = 0;
-    static DOTS_IN_FRAME: u64 = 70224;
+    const DOTS_IN_FRAME: u64 = 70224;
     let mut frame_start = std::time::Instant::now();
     let mut input = GBInputState::default();
     while !renderer.window().should_close() {

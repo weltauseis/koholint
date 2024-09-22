@@ -1,4 +1,4 @@
-use log::{info, trace, warn};
+use log::{debug, info, trace, warn};
 
 use crate::error::{EmulationError, EmulationErrorType};
 
@@ -337,10 +337,10 @@ impl Memory {
                     self.io_hw[0] = (self.io_hw[0] & 0b0000_1111) | (value & 0b1111_0000);
                 }
                 0xFF01 => {
-                    info!("WRITE TO SERIAL DATA REGISTER");
+                    debug!("WRITE TO SERIAL DATA REGISTER");
                 }
                 0xFF02 => {
-                    info!("WRITE TO SERIAL CONTROL REGISTER");
+                    debug!("WRITE TO SERIAL CONTROL REGISTER");
                 }
                 0xFF04 => {
                     // writing to the DIV register clears it
@@ -348,7 +348,7 @@ impl Memory {
                 }
                 0xFF10..0xFF40 => {
                     // audio registers, not important for now
-                    info!("WRITE TO AUDIO REGISTER ({:#06X})", address);
+                    debug!("WRITE TO AUDIO REGISTER ({:#06X})", address);
                 }
                 0xFF41 => {
                     // the lower 3 bits of LCD STAT are read-only
@@ -356,7 +356,7 @@ impl Memory {
                     self.io_hw[0x41] = (self.io_hw[0x41] & 0b_0000_0111) | (value & 0b_1111_1000);
                 }
                 0xFF46 => {
-                    //warn!("DMA TRANSFER REQUESTED");
+                    //debug!("DMA TRANSFER REQUESTED");
                     let start_adress = (value as u16) * 0x100;
                     for i in 0..160u16 {
                         self.oam[i as usize] = self.read_byte(start_adress + i);
@@ -478,10 +478,25 @@ impl Memory {
     }
 
     // LCD control byte flags
-    pub fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
+    fn read_lcd_ctrl_flag(&self, bit: u8) -> bool {
         let lcd_ctrl = self.read_byte(0xFF40);
 
         return ((lcd_ctrl >> bit) & 1) == 1;
+    }
+
+    pub fn is_lcd_enabled(&self) -> bool {
+        return self.read_lcd_ctrl_flag(7);
+    }
+
+    pub fn is_bg_tile_addressing_mode_normal(&self) -> bool {
+        return self.read_lcd_ctrl_flag(4);
+    }
+
+    pub fn read_scrolling_registers(&self) -> (usize, usize) {
+        let y = self.read_byte(0xff42);
+        let x = self.read_byte(0xff43);
+
+        return (x as usize, y as usize);
     }
 
     // Interrupts functions
