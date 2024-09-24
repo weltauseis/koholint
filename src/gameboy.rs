@@ -12,7 +12,7 @@ use crate::{
 const SCREEN_W: usize = 160;
 const SCREEN_H: usize = 144;
 const BYTES_PER_PIXELS: usize = 4; // rgba_u8
-const TILEMAP_W: usize = 256;
+const TEXTURES_W: usize = 256;
 
 pub struct Gameboy {
     cpu: CPU,
@@ -23,8 +23,9 @@ pub struct Gameboy {
     tima_cycles: u64, // MAIN TIMER
     halted: bool,
     // rendering
-    tilemap: Box<[u8; TILEMAP_W * TILEMAP_W * BYTES_PER_PIXELS]>,
-    framebuffer: Box<[u8; SCREEN_W * SCREEN_H * BYTES_PER_PIXELS]>,
+    tile_atlas: Box<[u8; TEXTURES_W * TEXTURES_W * BYTES_PER_PIXELS]>, // used for objects to sample
+    tilemap: Box<[u8; TEXTURES_W * TEXTURES_W * BYTES_PER_PIXELS]>, // a particular arrangement of tiles used as background
+    framebuffer: Box<[u8; SCREEN_W * SCREEN_H * BYTES_PER_PIXELS]>, // the current state of the gameboy screen
 }
 
 impl Gameboy {
@@ -39,7 +40,8 @@ impl Gameboy {
             ly_cycles: 0,
             tima_cycles: 0,
             halted: false,
-            tilemap: Box::new([0; TILEMAP_W * TILEMAP_W * BYTES_PER_PIXELS]),
+            tile_atlas: Box::new([0; TEXTURES_W * TEXTURES_W * BYTES_PER_PIXELS]),
+            tilemap: Box::new([0; TEXTURES_W * TEXTURES_W * BYTES_PER_PIXELS]),
             framebuffer: Box::new([0; SCREEN_W * SCREEN_H * BYTES_PER_PIXELS]),
         };
     }
@@ -246,7 +248,8 @@ impl Gameboy {
 
         if line == 0 {
             // we just returned from a v-blank period where vram might have been modified
-            // so the tilemap needs to be updated
+            // so the tile atlas & tilemap needs to be updated
+            self.update_tile_atlas();
             self.update_tile_map();
         }
 
@@ -286,17 +289,25 @@ impl Gameboy {
 
             // same thing for x_pos: it is between -8 and SCREEN_W
             let x_pos = self.memory.read_byte(0xFE00 + obj * 4 + 1) as isize - 8;
+            let sprite_id = self.memory.read_byte(0xFE00 + obj * 4 + 2);
+
             for x_pxl in 0..8 {
                 // sprites can be half-outside and half-inside the screen
                 if x_pos + (x_pxl as isize) >= 0 {
+                    let pixel_start_framebuffer =
+                        (line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS;
+                    let pixel_start_tile_atlas = ((sprite_id as usize / 32) * (TEXTURES_W * 8)
+                        + (sprite_id as usize % 32) * 8
+                        + x_pxl
+                        + ((line - y_pos as usize) * TEXTURES_W))
+                        * BYTES_PER_PIXELS;
+
                     self.framebuffer
-                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS] = 255;
-                    self.framebuffer
-                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS + 1] = 0;
-                    self.framebuffer
-                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS + 2] = 0;
-                    self.framebuffer
-                        [(line * SCREEN_W + (x_pos as usize) + x_pxl) * BYTES_PER_PIXELS + 3] = 255;
+                        [pixel_start_framebuffer..(pixel_start_framebuffer + BYTES_PER_PIXELS)]
+                        .copy_from_slice(
+                            &self.tile_atlas[pixel_start_tile_atlas
+                                ..(pixel_start_tile_atlas + BYTES_PER_PIXELS)],
+                        );
                 }
             }
         }
@@ -346,8 +357,7 @@ impl Gameboy {
         return img;
     }
 
-    pub fn get_tile_atlas_rgba8(&self) -> Vec<u8> {
-        let mut img = vec![0u8; 256 * 256 * 4];
+    pub fn update_tile_atlas(&mut self) {
         let palette = self.get_palette();
 
         // https://gbdev.io/pandocs/Tile_Data.html
@@ -379,12 +389,11 @@ impl Gameboy {
                         // tile start                              | pixel start
                         8 * (id % 32) + (8 * 8 * 32) * (id / 32) + ((y as usize) * 8 * 32) + (x as usize);
 
-                    img[(pixel * 4)..(pixel * 4 + 4)].copy_from_slice(&palette[value as usize]);
+                    self.tile_atlas[(pixel * 4)..(pixel * 4 + 4)]
+                        .copy_from_slice(&palette[value as usize]);
                 }
             }
         }
-
-        return img;
     }
 
     pub fn update_tile_map(&mut self) {

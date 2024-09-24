@@ -50,7 +50,6 @@ fn run(args: Vec<String>) -> Result<(), EmulationError> {
         .expect("Failed to create GLFW window.");
 
     window.set_key_polling(true);
-    //window.make_current();
 
     let mut renderer = renderer::Renderer::new(&mut window).block_on();
 

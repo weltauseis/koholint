@@ -228,10 +228,8 @@ impl Debugger {
                             }
                         }
                     },
-                    "dump" => {
+                    /*                     "dump" => {
                         let mut ppm_string = String::from("P3\n256 256\n255\n");
-
-                        let tile_atlas = console.get_tile_atlas_rgba8();
 
                         for pixel in 0..(256 * 256) {
                             ppm_string.push_str(&format!(
@@ -245,7 +243,7 @@ impl Debugger {
                         std::fs::create_dir_all("dumps").unwrap();
                         let mut file = std::fs::File::create(format!("dumps/vram.ppm")).unwrap();
                         file.write_all(ppm_string.as_bytes()).unwrap();
-                    }
+                    } */
                     _ => {
                         println!("Error : Unknown command ({})", subcommands[0]);
                     }
