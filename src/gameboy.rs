@@ -539,6 +539,10 @@ impl Gameboy {
                                     let address = self.cpu.read_r16(&ptr);
                                     self.memory.read_byte(address)
                                 }
+                                R8_C => {
+                                    let address = self.cpu.read_r8(&ptr) as u16 + 0xFF00;
+                                    self.memory.read_byte(address)
+                                }
                                 // address from imm8 : IO memory
                                 IMM8(imm8) => self.memory.read_byte(0xFF00 + imm8 as u16),
                                 // adress from imm16
@@ -1381,6 +1385,34 @@ impl Gameboy {
                 self.cpu.write_z_flag(false);
                 self.cpu.write_n_flag(false);
                 self.cpu.write_h_flag(false);
+            }
+            Operation::DAA => {
+                // https://blog.ollien.com/posts/gb-daa/
+                let mut offset = 0;
+                let a = self.cpu.read_a_register();
+                let half_carry = self.cpu.read_h_flag();
+                let carry = self.cpu.read_c_flag();
+                let n = self.cpu.read_n_flag();
+
+                if (!n && a & 0xF > 0x9) || half_carry {
+                    offset |= 0x06;
+                }
+
+                if (!n && a > 0x99) || carry {
+                    offset |= 0x60;
+                }
+
+                self.cpu.write_a_register(if !n {
+                    a.wrapping_add(offset)
+                } else {
+                    a.wrapping_sub(offset)
+                });
+
+                // flags : z - 0 c
+                self.cpu.write_z_flag(self.cpu.read_a_register() == 0);
+                self.cpu.write_n_flag(false);
+                self.cpu
+                    .write_c_flag(carry || (!n && self.cpu.read_a_register() > 0x99));
             }
             Operation::JR { offset_oprd } => {
                 let offset = match offset_oprd {

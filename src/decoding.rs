@@ -71,6 +71,7 @@ pub enum Operation {
     RRA,
     RLCA,
     RRCA,
+    DAA,
     SRL { x: Operand },
     SLA { x: Operand },
     CP { y: Operand },
@@ -487,6 +488,15 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 },
                 size: 2,
                 cycles: 8,
+                branch_cycles: None,
+            });
+        }
+        // daa
+        0x27 => {
+            return Ok(Instruction {
+                op: DAA,
+                size: 1,
+                cycles: 4,
                 branch_cycles: None,
             });
         }
@@ -4376,6 +4386,17 @@ pub fn decode_instruction(console: &Gameboy, address: u16) -> Result<Instruction
                 branch_cycles: None,
             });
         }
+        0xD2 => {
+            return Ok(Instruction {
+                op: JP_CC {
+                    cc: CC_NC,
+                    addr: IMM16(imm16),
+                },
+                size: 3,
+                cycles: 12,
+                branch_cycles: Some(16),
+            });
+        }
         // call nc, imm16
         0xD4 => {
             return Ok(Instruction {
@@ -4782,6 +4803,7 @@ pub fn instruction_to_string(instr: &Instruction) -> String {
         Operation::RRA => String::from("rra"),
         Operation::RLCA => String::from("rlca"),
         Operation::RRCA => String::from("rrca"),
+        Operation::DAA => String::from("daa"),
         Operation::SRL { x } => format!("srl {x}"),
         Operation::SLA { x } => format!("sla {x}"),
         Operation::CP { y } => format!("cp {y}"),

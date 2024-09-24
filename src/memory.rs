@@ -356,7 +356,7 @@ impl Memory {
                     self.io_hw[0x41] = (self.io_hw[0x41] & 0b_0000_0111) | (value & 0b_1111_1000);
                 }
                 0xFF46 => {
-                    //debug!("DMA TRANSFER REQUESTED");
+                    debug!("DMA TRANSFER REQUESTED");
                     let start_adress = (value as u16) * 0x100;
                     for i in 0..160u16 {
                         self.oam[i as usize] = self.read_byte(start_adress + i);
@@ -365,6 +365,7 @@ impl Memory {
                 0xFF0F |            // IF 
                 0xFF40 |            // LCD CONTROL
                 0xFF42 | 0xFF43 |   // SCX & SCY
+                0xFF45 |            // LCY
                 0xFF47 |            // PALETTE
                 0xFF4A | 0xFF4B |   // WINDOW X & Y
                 0xFF50 |            // DISABLES BOOT ROM
